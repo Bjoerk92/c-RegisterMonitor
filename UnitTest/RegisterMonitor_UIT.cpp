@@ -47,6 +47,10 @@ void SetUpRegisters(std::array<Register, number_of_registers>& registers)
     registers[5].flags.writeable = false;
 }
 
+// Register monitor initialization tests
+// =============================================================================
+
+// Initialization succeeds when given a non-null register list and non-zero size.
 TEST(RegisterMonitorInit, ReturnsOkForValidRegisterList)
 {
     std::array<Register, number_of_registers> registers{};
@@ -64,17 +68,23 @@ TEST(RegisterMonitorInit, ReturnsOkForValidRegisterList)
         REGMON_OK);
 }
 
+// Initialization rejects a null register list.
 TEST(RegisterMonitorInit, ReturnsErrorForNullRegisterList)
 {
     EXPECT_EQ(RegMon_Init(nullptr, nullptr, nullptr, nullptr, number_of_registers), REGMON_ERROR);
 }
 
+// Initialization rejects a register list with no entries.
 TEST(RegisterMonitorInit, ReturnsErrorForEmptyRegisterList)
 {
     std::array<Register, number_of_registers> registers{};
     EXPECT_EQ(RegMon_Init(registers.data(), nullptr, nullptr, nullptr, 0), REGMON_ERROR);
 }
 
+// Register read tests
+// =============================================================================
+
+// Each read test starts with the same initialized register list.
 class RegisterMonitorReadTest : public ::testing::Test
 {
 protected:
@@ -89,6 +99,7 @@ protected:
     }
 };
 
+// Reading a readable register returns its current value.
 TEST_F(RegisterMonitorReadTest, ReadsValueFromReadableRegister)
 {
     uint32_t value = 0;
@@ -97,11 +108,13 @@ TEST_F(RegisterMonitorReadTest, ReadsValueFromReadableRegister)
     EXPECT_EQ(value, 0x20100000);
 }
 
+// Reading fails when the destination pointer is null.
 TEST_F(RegisterMonitorReadTest, ReturnsErrorForNullDestination)
 {
     EXPECT_EQ(RegMon_read_register(0, nullptr), REGMON_ERROR);
 }
 
+// Reading fails when the register index is outside the configured list.
 TEST_F(RegisterMonitorReadTest, ReturnsInvalidAddressForOutOfRangeRegister)
 {
     uint32_t value = 0;
@@ -109,6 +122,7 @@ TEST_F(RegisterMonitorReadTest, ReturnsInvalidAddressForOutOfRangeRegister)
     EXPECT_EQ(RegMon_read_register(number_of_registers, &value), REGMON_INVALID_ADDRESS);
 }
 
+// Reading a register without its readable flag returns the appropriate error.
 TEST_F(RegisterMonitorReadTest, ReturnsNotReadableForUnreadableRegister)
 {
     uint32_t value = 0;
@@ -116,6 +130,10 @@ TEST_F(RegisterMonitorReadTest, ReturnsNotReadableForUnreadableRegister)
     EXPECT_EQ(RegMon_read_register(5, &value), REGMON_ADDRESS_NOT_READABLE);
 }
 
+// Register write tests
+// =============================================================================
+
+// Each write test starts with an initialized list and permissive maximum values.
 class RegisterMonitorWriteTest : public ::testing::Test
 {
 protected:
@@ -138,6 +156,7 @@ protected:
     }
 };
 
+// Writing a permitted value updates a writeable register.
 TEST_F(RegisterMonitorWriteTest, WritesValueToWriteableRegister)
 {
     constexpr uint32_t new_value = 1234;
@@ -146,6 +165,7 @@ TEST_F(RegisterMonitorWriteTest, WritesValueToWriteableRegister)
     EXPECT_EQ(registers[2].value, new_value);
 }
 
+// Writing fails when the register index is outside the configured list.
 TEST_F(RegisterMonitorWriteTest, ReturnsInvalidAddressForOutOfRangeRegister)
 {
     EXPECT_EQ(
@@ -153,11 +173,13 @@ TEST_F(RegisterMonitorWriteTest, ReturnsInvalidAddressForOutOfRangeRegister)
         REGMON_INVALID_ADDRESS);
 }
 
+// Writing to a register without its writeable flag returns an error.
 TEST_F(RegisterMonitorWriteTest, ReturnsNotWriteableForReadOnlyRegister)
 {
     EXPECT_EQ(RegMon_write_register(0, 1), REGMON_ADDRESS_NOT_WRITEABLE);
 }
 
+// Writing a value below the configured minimum is rejected without changing it.
 TEST_F(RegisterMonitorWriteTest, RejectsValueBelowMinimum)
 {
     min_values[2] = 10;
@@ -166,6 +188,7 @@ TEST_F(RegisterMonitorWriteTest, RejectsValueBelowMinimum)
     EXPECT_EQ(registers[2].value, 0);
 }
 
+// Writing a value above the configured maximum is rejected without changing it.
 TEST_F(RegisterMonitorWriteTest, RejectsValueAboveMaximum)
 {
     max_values[2] = 20;
