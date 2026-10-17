@@ -1,7 +1,7 @@
 /**
  * @file RegisterMonitor_UIT.cpp
  * @author Anders (anders.bjoerk.unf@gmail.com)
- * @brief 
+ * @brief Unit tests for the Register Monitor API.
  * @version 0.1
  * @date 2026-10-17
  * 
@@ -12,20 +12,23 @@
 #include <array>
 #include "RegisterMonitor.h"
 
-constexpr int number_of_registers = 6;
-
 namespace
 {
+// Number of registers shared by the test register maps.
+constexpr int number_of_registers = 6;
+
+// State captured by the write-callback test.
 uint32_t write_callback_value = 0;
 uint32_t write_callback_call_count = 0;
 
+// Store the most recent callback value and count its invocations.
 void CaptureWriteCallback(uint32_t value)
 {
     write_callback_value = value;
     ++write_callback_call_count;
 }
-}
 
+// Populate a register map with readable, writable, and restricted examples.
 void SetUpRegisters(std::array<Register, number_of_registers>& registers)
 {
     // Device ID
@@ -57,6 +60,7 @@ void SetUpRegisters(std::array<Register, number_of_registers>& registers)
     registers[5].value = 0x0101;
     registers[5].flags.readable = false;
     registers[5].flags.writeable = false;
+}
 }
 
 // Register monitor initialization tests
@@ -96,12 +100,13 @@ TEST(RegisterMonitorInit, ReturnsErrorForEmptyRegisterList)
 // Register read tests
 // =============================================================================
 
-// Each read test starts with the same initialized register list.
+// Provides a fresh, initialized register map for each single-register read test.
 class RegisterMonitorReadTest : public ::testing::Test
 {
 protected:
     std::array<Register, number_of_registers> registers{};
 
+    // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
         SetUpRegisters(registers);
@@ -145,12 +150,13 @@ TEST_F(RegisterMonitorReadTest, ReturnsNotReadableForUnreadableRegister)
 // Register block read tests
 // =============================================================================
 
-// Each block-read test starts with the standard initialized register list.
+// Provides a fresh, initialized register map for each block-read test.
 class RegisterMonitorReadBlockTest : public ::testing::Test
 {
 protected:
     std::array<Register, number_of_registers> registers{};
 
+    // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
         SetUpRegisters(registers);
@@ -219,7 +225,7 @@ TEST_F(RegisterMonitorReadBlockTest, ReturnsNotReadableWhenBlockContainsUnreadab
 // Register write tests
 // =============================================================================
 
-// Each write test starts with an initialized list and permissive maximum values.
+// Provides an initialized register map and permissive value limits for write tests.
 class RegisterMonitorWriteTest : public ::testing::Test
 {
 protected:
@@ -227,6 +233,7 @@ protected:
     std::array<uint32_t, number_of_registers> min_values{};
     std::array<uint32_t, number_of_registers> max_values{};
 
+    // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
         SetUpRegisters(registers);
@@ -304,7 +311,7 @@ TEST_F(RegisterMonitorWriteTest, RejectsValueAboveMaximum)
 // Register block write tests
 // =============================================================================
 
-// Each block-write test starts with initialized registers and permissive value limits.
+// Provides an initialized register map and permissive value limits for block writes.
 class RegisterMonitorWriteBlockTest : public ::testing::Test
 {
 protected:
@@ -312,6 +319,7 @@ protected:
     std::array<uint32_t, number_of_registers> min_values{};
     std::array<uint32_t, number_of_registers> max_values{};
 
+    // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
         SetUpRegisters(registers);
