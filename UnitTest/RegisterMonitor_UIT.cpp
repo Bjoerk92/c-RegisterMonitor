@@ -130,6 +130,80 @@ TEST_F(RegisterMonitorReadTest, ReturnsNotReadableForUnreadableRegister)
     EXPECT_EQ(RegMon_read_register(5, &value), REGMON_ADDRESS_NOT_READABLE);
 }
 
+// Register block read tests
+// =============================================================================
+
+// Each block-read test starts with the standard initialized register list.
+class RegisterMonitorReadBlockTest : public ::testing::Test
+{
+protected:
+    std::array<Register, number_of_registers> registers{};
+
+    void SetUp() override
+    {
+        SetUpRegisters(registers);
+        ASSERT_EQ(
+            RegMon_Init(registers.data(), nullptr, nullptr, nullptr, number_of_registers),
+            REGMON_OK);
+    }
+};
+
+// Reading a block returns each readable register value in index order.
+TEST_F(RegisterMonitorReadBlockTest, ReadsValuesFromReadableRegisterBlock)
+{
+    std::array<uint32_t, 2> values{};
+
+    EXPECT_EQ(RegMon_read_register_block(0, values.size(), values.data()), REGMON_OK);
+    EXPECT_EQ(values[0], 0x20100000);
+    EXPECT_EQ(values[1], 0x00000001);
+}
+
+// A valid block can include the final zero-based register index.
+TEST_F(RegisterMonitorReadBlockTest, ReadsBlockEndingAtLastRegister)
+{
+    registers[5].value = 0xABCD;
+    registers[5].flags.readable = true;
+    std::array<uint32_t, 2> values{};
+
+    EXPECT_EQ(RegMon_read_register_block(4, values.size(), values.data()), REGMON_OK);
+    EXPECT_EQ(values[0], 0x00000101);
+    EXPECT_EQ(values[1], 0xABCD);
+}
+
+// Reading a block fails if the destination buffer is null.
+TEST_F(RegisterMonitorReadBlockTest, ReturnsErrorForNullDestination)
+{
+    EXPECT_EQ(RegMon_read_register_block(0, 1, nullptr), REGMON_ERROR);
+}
+
+// Reading a block with zero registers is rejected.
+TEST_F(RegisterMonitorReadBlockTest, ReturnsErrorForEmptyBlock)
+{
+    uint32_t value = 0;
+
+    EXPECT_EQ(RegMon_read_register_block(0, 0, &value), REGMON_ERROR);
+}
+
+// Reading fails if the requested block extends beyond the register list.
+TEST_F(RegisterMonitorReadBlockTest, ReturnsInvalidAddressForOutOfRangeBlock)
+{
+    std::array<uint32_t, 2> values{};
+
+    EXPECT_EQ(
+        RegMon_read_register_block(number_of_registers - 1, values.size(), values.data()),
+        REGMON_INVALID_ADDRESS);
+}
+
+// A block read fails if any register in the block is not readable.
+TEST_F(RegisterMonitorReadBlockTest, ReturnsNotReadableWhenBlockContainsUnreadableRegister)
+{
+    std::array<uint32_t, 2> values{};
+
+    EXPECT_EQ(
+        RegMon_read_register_block(4, values.size(), values.data()),
+        REGMON_ADDRESS_NOT_READABLE);
+}
+
 // Register write tests
 // =============================================================================
 
@@ -195,4 +269,99 @@ TEST_F(RegisterMonitorWriteTest, RejectsValueAboveMaximum)
 
     EXPECT_EQ(RegMon_write_register(2, 21), REGMON_INVALID_VALUE);
     EXPECT_EQ(registers[2].value, 0);
+}
+
+// Register block write tests
+// =============================================================================
+
+// Each block-write test starts with initialized registers and permissive value limits.
+class RegisterMonitorWriteBlockTest : public ::testing::Test
+{
+protected:
+    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> min_values{};
+    std::array<uint32_t, number_of_registers> max_values{};
+
+    void SetUp() override
+    {
+        SetUpRegisters(registers);
+        max_values.fill(0xFFFFFFFFu);
+        ASSERT_EQ(
+            RegMon_Init(
+                registers.data(),
+                nullptr,
+                min_values.data(),
+                max_values.data(),
+                number_of_registers),
+            REGMON_OK);
+    }
+};
+
+// Writing a block updates each writable register with the corresponding value.
+TEST_F(RegisterMonitorWriteBlockTest, WritesValuesToWriteableRegisterBlock)
+{
+    std::array<uint32_t, 2> values{1234, 5678};
+
+    EXPECT_EQ(RegMON_write_register_block(2, values.size(), values.data()), REGMON_OK);
+    EXPECT_EQ(registers[2].value, values[0]);
+    EXPECT_EQ(registers[3].value, values[1]);
+}
+
+// A valid block write can include the final zero-based register index.
+TEST_F(RegisterMonitorWriteBlockTest, WritesBlockEndingAtLastRegister)
+{
+    registers[4].flags.writeable = true;
+    registers[5].flags.writeable = true;
+    std::array<uint32_t, 2> values{1234, 5678};
+
+    EXPECT_EQ(RegMON_write_register_block(4, values.size(), values.data()), REGMON_OK);
+    EXPECT_EQ(registers[4].value, values[0]);
+    EXPECT_EQ(registers[5].value, values[1]);
+}
+
+// Writing a block fails when the input values pointer is null.
+TEST_F(RegisterMonitorWriteBlockTest, ReturnsErrorForNullValues)
+{
+    EXPECT_EQ(RegMON_write_register_block(2, 1, nullptr), REGMON_ERROR);
+}
+
+// Writing a block with zero registers is rejected.
+TEST_F(RegisterMonitorWriteBlockTest, ReturnsErrorForEmptyBlock)
+{
+    uint32_t value = 1;
+
+    EXPECT_EQ(RegMON_write_register_block(2, 0, &value), REGMON_ERROR);
+}
+
+// Writing fails when the requested block extends beyond the register list.
+TEST_F(RegisterMonitorWriteBlockTest, ReturnsInvalidAddressForOutOfRangeBlock)
+{
+    std::array<uint32_t, 2> values{1, 2};
+
+    EXPECT_EQ(
+        RegMON_write_register_block(number_of_registers - 1, values.size(), values.data()),
+        REGMON_INVALID_ADDRESS);
+}
+
+// A block write fails if any register in the block is not writable.
+TEST_F(RegisterMonitorWriteBlockTest, ReturnsNotWriteableWhenBlockContainsReadOnlyRegister)
+{
+    std::array<uint32_t, 3> values{1, 2, 3};
+
+    EXPECT_EQ(
+        RegMON_write_register_block(2, values.size(), values.data()),
+        REGMON_ADDRESS_NOT_WRITEABLE);
+}
+
+// If a block value is outside its limits, no registers in the block are changed.
+TEST_F(RegisterMonitorWriteBlockTest, RejectsOutOfRangeValueWithoutChangingBlock)
+{
+    min_values[3] = 10;
+    std::array<uint32_t, 2> values{1234, 9};
+
+    EXPECT_EQ(
+        RegMON_write_register_block(2, values.size(), values.data()),
+        REGMON_INVALID_VALUE);
+    EXPECT_EQ(registers[2].value, 0);
+    EXPECT_EQ(registers[3].value, 0);
 }

@@ -143,7 +143,7 @@ static bool CheckReadableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
     for (uint32_t i = 0; i < num_of_regs; i++)
     {
-        if (!register_list[reg_index].flags.readable)
+        if (!register_list[reg_index + i].flags.readable)
         {
             return false;
         }
@@ -163,7 +163,7 @@ static bool CheckWriteableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
     for (uint32_t i = 0; i < num_of_regs; i++)
     {
-        if (!register_list[reg_index].flags.writeable)
+        if (!register_list[reg_index + i].flags.writeable)
         {
             return false;
         }
@@ -406,9 +406,10 @@ Regmon_status_e RegMon_read_register_block(
 )
 {
     Regmon_status_e status = REGMON_OK;
-    if (dst != NULL)
+    if ((dst != NULL) && (num_of_regs != 0))
     {
-        if ((reg_index + num_of_regs) < number_of_registers)
+        if ((reg_index < number_of_registers) &&
+            (num_of_regs <= number_of_registers - reg_index))
         {
             if (CheckReadableMulti(reg_index, num_of_regs))
             {
@@ -447,7 +448,8 @@ Regmon_status_e RegMON_write_register_block(
     Regmon_status_e status = REGMON_OK;
     if ((values != NULL) && (num_of_regs != 0))
     {
-        if ((reg_index + num_of_regs) < number_of_registers)
+        if ((reg_index < number_of_registers) &&
+            (num_of_regs <= number_of_registers - reg_index))
         {
             if (CheckWriteableMulti(reg_index, num_of_regs))
             {
