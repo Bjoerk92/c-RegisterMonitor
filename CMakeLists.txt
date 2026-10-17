@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.20)
 
-project(registerMON)
+project(RegisterMonitor VERSION 1.0.0.0)
 
 add_library(${PROJECT_NAME}_lib
     src/RegisterMonitor.c
@@ -9,3 +9,6 @@ add_library(${PROJECT_NAME}_lib
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
 )
+
+
+add_subdirectory(UnitTest)

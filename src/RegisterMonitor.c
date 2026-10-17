@@ -239,11 +239,11 @@ Regmon_status_e RegMon_SetMutexCallbacks(
  * @param list_size         number of registers.
  * @return Regmon_status_e 
  */
-Regmon_status_e RegMon_Init(const Register* ptr_list,
-                            const uint32_t* default_values,
-                            const uint32_t* min,
-                            const uint32_t* max,
-                            const uint32_t list_size
+Regmon_status_e RegMon_Init(Register* ptr_list,
+                            uint32_t* default_values,
+                            uint32_t* min,
+                            uint32_t* max,
+                            uint32_t list_size
 )
 {
     Regmon_status_e status = REGMON_OK;
@@ -503,7 +503,7 @@ Regmon_status_e RegMON_read_bit(uint32_t reg, uint8_t bitnum, uint8_t* dst)
             {   
                 RegMON_Lock();
                 {
-                    *dst = (register_list[reg].value << (bitnum - 1)) & 0x01;
+                    *dst = (register_list[reg].value >> (bitnum - 1)) & 0x01;
                 }
                 RegMON_Unlock();
             }

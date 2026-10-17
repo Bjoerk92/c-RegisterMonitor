@@ -60,12 +60,17 @@ typedef void (*RegMon_MutexCallback)(void* context, uint32_t timeout);
 /*                      Register monitor interface functions                 */
 /*****************************************************************************/
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 Regmon_status_e RegMon_Init(
-    const Register* ptr_list,
-    const uint32_t* default_values,
-    const uint32_t* min,
-    const uint32_t* max,
-    const uint32_t list_size
+    Register* ptr_list,
+    uint32_t* default_values,
+    uint32_t* min,
+    uint32_t* max,
+    uint32_t list_size
 );
 
 Regmon_status_e RegMon_SetMutexCallbacks(
@@ -94,3 +99,7 @@ Regmon_status_e RegMON_write_register_block(
 
 Regmon_status_e RegMON_read_bit(uint32_t reg, uint8_t bitnum, uint8_t* dst);
 Regmon_status_e RegMON_write_bit(uint32_t reg, uint8_t bitnum, bool val);
+
+#ifdef __cplusplus
+}
+#endif
