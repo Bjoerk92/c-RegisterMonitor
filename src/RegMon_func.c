@@ -152,6 +152,58 @@ static bool CheckReadableMulti(uint32_t reg, uint32_t num_of_regs)
 }
 
 /**
+ * @brief check if a block of registers is writeable.
+ * 
+ * @param reg           Start register
+ * @param num_of_regs   number of registers in block
+ * @return true         all registers is writable
+ * @return false        1 or more registers is not writable
+ */
+static bool CheckWriteableMulti(uint32_t reg, uint32_t num_of_regs)
+{
+    for (uint32_t i = 0; i < num_of_regs; i++)
+    {
+        if (!register_list[reg].flags.writeable)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief Function to check values going into a block
+ * 
+ * @param reg           First register in block
+ * @param num_of_regs   number of register in block
+ * @param values        pointer to values to check
+ * @return true         All values are within params
+ * @return false        1 or more values are outside params
+ */
+static bool CheckValueBlock(uint32_t reg, uint32_t num_of_regs, uint32_t* values)
+{
+    for (uint32_t i = 0; i < num_of_regs; i++)
+    {
+        if (regmon_min_values != NULL)
+        {   
+            if (regmon_min_values[reg + i] > values[i])
+            {
+                return false;
+            }
+        }
+
+        if (regmon_max_values != NULL)
+        {
+            if (regmon_max_values[reg + i] < values[i])
+            {
+                return false;   
+            }
+        }
+    }
+    return true;
+}
+
+/**
  * @brief Register Monitor function to set the usage of RTOS Mutex's
  * 
  * @note If Mutex protection is required
@@ -211,6 +263,11 @@ Regmon_status_e RegMon_Init(const Register* ptr_list,
     return status;
 }
 
+/**
+ * @brief Register Monitor function to reset registers to default values
+ *  
+ * @return Regmon_status_e status of operation. 
+ */
 Regmon_status_e RegMON_default_list(void)
 {
     Regmon_status_e status = REGMON_OK;
@@ -229,6 +286,11 @@ Regmon_status_e RegMON_default_list(void)
     return status;
 }
 
+/**
+ * @brief Register Monitor function to reset registers to OEM default values
+ * 
+ * @return Regmon_status_e status of operation
+ */
 Regmon_status_e RegMON_default_list_to_OEM(void)
 {
     Regmon_status_e status = REGMON_OK;
@@ -359,3 +421,41 @@ Regmon_status_e RegMon_read_register_block(
     return status;
 }
 
+Regmon_status_e RegMON_write_register_block(
+    uint32_t reg,
+    uint32_t num_of_regs,
+    uint32_t* values
+)
+{
+    Regmon_status_e status = REGMON_OK;
+    RegMON_Lock();
+    {
+        if ((reg + num_of_regs) < number_of_registers)
+        {
+            if (CheckWriteableMulti(reg, num_of_regs))
+            {
+                if (CheckValueBlock(reg, num_of_regs, values))
+                {
+                    for (uint32_t i = 0; i < num_of_regs; i++)
+                    {
+                        register_list[reg + i].value = values[i];
+                    }
+                }
+                else 
+                {
+                    status = REGMON_INVALID_VALUE;
+                }
+            }
+            else
+            {
+                status = REGMON_ADDRESS_NOT_WRITEABLE;
+            }
+        }
+        else
+        {
+            status = REGMON_INVALID_ADDRESS;
+        }
+    }
+    RegMON_Unlock();
+    return status;
+}
