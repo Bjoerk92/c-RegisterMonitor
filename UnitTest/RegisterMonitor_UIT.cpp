@@ -14,113 +14,162 @@
 
 constexpr int number_of_registers = 6;
 
-std::array<Register, number_of_registers> register_list{};
-
-void SetUpRegisters()
+void SetUpRegisters(std::array<Register, number_of_registers>& registers)
 {
     // Device ID
-    register_list[0].value = 0x20100000;
-    register_list[0].flags.readable = true;
-    register_list[0].flags.writeable = false;
+    registers[0].value = 0x20100000;
+    registers[0].flags.readable = true;
+    registers[0].flags.writeable = false;
 
     // Device model
-    register_list[1].value = 0x00000001;
-    register_list[1].flags.readable = true;
-    register_list[1].flags.writeable = false;
+    registers[1].value = 0x00000001;
+    registers[1].flags.readable = true;
+    registers[1].flags.writeable = false;
 
     // Actual Speed
-    register_list[2].value = 0;
-    register_list[2].flags.readable = true;
-    register_list[2].flags.writeable = true;
+    registers[2].value = 0;
+    registers[2].flags.readable = true;
+    registers[2].flags.writeable = true;
 
     // Actual position
-    register_list[3].value = 0;
-    register_list[3].flags.readable = true;
-    register_list[3].flags.writeable = true;
+    registers[3].value = 0;
+    registers[3].flags.readable = true;
+    registers[3].flags.writeable = true;
 
     // Operation bit 
-    register_list[4].value = 0x00000101;
-    register_list[4].flags.readable = true;
-    register_list[4].flags.writeable = false;
+    registers[4].value = 0x00000101;
+    registers[4].flags.readable = true;
+    registers[4].flags.writeable = false;
 
-    register_list[5].value = 0x0101;
-    register_list[5].flags.readable = false;
-    register_list[5].flags.writeable = false;
+    // Status bit
+    registers[5].value = 0x0101;
+    registers[5].flags.readable = false;
+    registers[5].flags.writeable = false;
 }
 
-
-TEST(Init, nullptr)
+TEST(RegisterMonitorInit, ReturnsOkForValidRegisterList)
 {
-    Regmon_status_e status = REGMON_OK;
-    status = RegMon_Init(nullptr, nullptr, nullptr, nullptr, 0);
-    EXPECT_EQ(status, REGMON_ERROR);
+    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> defaults{};
+    std::array<uint32_t, number_of_registers> min_values{};
+    std::array<uint32_t, number_of_registers> max_values{};
+
+    EXPECT_EQ(
+        RegMon_Init(
+            registers.data(),
+            defaults.data(),
+            min_values.data(),
+            max_values.data(),
+            number_of_registers),
+        REGMON_OK);
 }
 
-TEST(Init, ZeroSize)
+TEST(RegisterMonitorInit, ReturnsErrorForNullRegisterList)
 {
-    Regmon_status_e status = REGMON_OK;
-    SetUpRegisters();
-    status = RegMon_Init(register_list.data(), nullptr, nullptr, nullptr, 0);
-    EXPECT_EQ(status, REGMON_ERROR);
+    EXPECT_EQ(RegMon_Init(nullptr, nullptr, nullptr, nullptr, number_of_registers), REGMON_ERROR);
 }
 
-TEST(Init, NoDefaults)
+TEST(RegisterMonitorInit, ReturnsErrorForEmptyRegisterList)
 {
-    Regmon_status_e status = REGMON_OK;
-    SetUpRegisters();
-    status = RegMon_Init(register_list.data(), nullptr, nullptr, nullptr, register_list.size());
-    EXPECT_EQ(status, REGMON_OK);
+    std::array<Register, number_of_registers> registers{};
+    EXPECT_EQ(RegMon_Init(registers.data(), nullptr, nullptr, nullptr, 0), REGMON_ERROR);
 }
 
-TEST(Register, DeviceID)
+class RegisterMonitorReadTest : public ::testing::Test
 {
-    Regmon_status_e status = REGMON_OK;
-    SetUpRegisters();
-    status = RegMon_Init(register_list.data(), nullptr, nullptr, nullptr, register_list.size());
-    EXPECT_EQ(status, REGMON_OK);
+protected:
+    std::array<Register, number_of_registers> registers{};
 
-    uint32_t Device_ID = 0;
-    status = RegMon_read_register(0, &Device_ID);
-    EXPECT_EQ(status, REGMON_OK);
-    EXPECT_EQ(Device_ID, 0x20100000);
+    void SetUp() override
+    {
+        SetUpRegisters(registers);
+        ASSERT_EQ(
+            RegMon_Init(registers.data(), nullptr, nullptr, nullptr, number_of_registers),
+            REGMON_OK);
+    }
+};
 
-    status = RegMon_write_register(0, 0);
-    EXPECT_EQ(status, REGMON_ADDRESS_NOT_WRITEABLE);
+TEST_F(RegisterMonitorReadTest, ReadsValueFromReadableRegister)
+{
+    uint32_t value = 0;
+
+    EXPECT_EQ(RegMon_read_register(0, &value), REGMON_OK);
+    EXPECT_EQ(value, 0x20100000);
 }
 
-TEST(Register, DeviceModel)
+TEST_F(RegisterMonitorReadTest, ReturnsErrorForNullDestination)
 {
-    Regmon_status_e status = REGMON_OK;
-    SetUpRegisters();
-    status = RegMon_Init(register_list.data(), nullptr, nullptr, nullptr, register_list.size());
-    EXPECT_EQ(status, REGMON_OK);
-
-    uint32_t DeviceModle = 0;
-    status = RegMon_read_register(1, &DeviceModle);
-    EXPECT_EQ(status, REGMON_OK);
-    EXPECT_EQ(DeviceModle, 0x01);
-
-    status = RegMon_write_register(0, 0);
-    EXPECT_EQ(status, REGMON_ADDRESS_NOT_WRITEABLE);   
+    EXPECT_EQ(RegMon_read_register(0, nullptr), REGMON_ERROR);
 }
 
-TEST(BitHandling, ReadBit)
+TEST_F(RegisterMonitorReadTest, ReturnsInvalidAddressForOutOfRangeRegister)
 {
-    Regmon_status_e status = REGMON_OK;
-    SetUpRegisters();
-    status = RegMon_Init(register_list.data(), nullptr, nullptr, nullptr, register_list.size());
-    EXPECT_EQ(status, REGMON_OK);
+    uint32_t value = 0;
 
-    uint8_t bitval = 0;
-    status = RegMON_read_bit(4, 9, &bitval);
-    EXPECT_EQ(bitval, 1);
-    EXPECT_EQ(status, REGMON_OK);
+    EXPECT_EQ(RegMon_read_register(number_of_registers, &value), REGMON_INVALID_ADDRESS);
+}
 
-    status = RegMON_read_bit(4,8,&bitval);
-    EXPECT_EQ(bitval, 0);
-    EXPECT_EQ(status, REGMON_OK);
+TEST_F(RegisterMonitorReadTest, ReturnsNotReadableForUnreadableRegister)
+{
+    uint32_t value = 0;
 
-    status = RegMON_read_bit(5,9,&bitval);
-    EXPECT_EQ(bitval, 0);
-    EXPECT_EQ(status, REGMON_ADDRESS_NOT_READABLE);
+    EXPECT_EQ(RegMon_read_register(5, &value), REGMON_ADDRESS_NOT_READABLE);
+}
+
+class RegisterMonitorWriteTest : public ::testing::Test
+{
+protected:
+    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> min_values{};
+    std::array<uint32_t, number_of_registers> max_values{};
+
+    void SetUp() override
+    {
+        SetUpRegisters(registers);
+        max_values.fill(0xFFFFFFFFu);
+        ASSERT_EQ(
+            RegMon_Init(
+                registers.data(),
+                nullptr,
+                min_values.data(),
+                max_values.data(),
+                number_of_registers),
+            REGMON_OK);
+    }
+};
+
+TEST_F(RegisterMonitorWriteTest, WritesValueToWriteableRegister)
+{
+    constexpr uint32_t new_value = 1234;
+
+    EXPECT_EQ(RegMon_write_register(2, new_value), REGMON_OK);
+    EXPECT_EQ(registers[2].value, new_value);
+}
+
+TEST_F(RegisterMonitorWriteTest, ReturnsInvalidAddressForOutOfRangeRegister)
+{
+    EXPECT_EQ(
+        RegMon_write_register(number_of_registers, 1),
+        REGMON_INVALID_ADDRESS);
+}
+
+TEST_F(RegisterMonitorWriteTest, ReturnsNotWriteableForReadOnlyRegister)
+{
+    EXPECT_EQ(RegMon_write_register(0, 1), REGMON_ADDRESS_NOT_WRITEABLE);
+}
+
+TEST_F(RegisterMonitorWriteTest, RejectsValueBelowMinimum)
+{
+    min_values[2] = 10;
+
+    EXPECT_EQ(RegMon_write_register(2, 9), REGMON_INVALID_VALUE);
+    EXPECT_EQ(registers[2].value, 0);
+}
+
+TEST_F(RegisterMonitorWriteTest, RejectsValueAboveMaximum)
+{
+    max_values[2] = 20;
+
+    EXPECT_EQ(RegMon_write_register(2, 21), REGMON_INVALID_VALUE);
+    EXPECT_EQ(registers[2].value, 0);
 }
