@@ -53,7 +53,7 @@ static uint32_t number_of_registers = 0;
  * callback table, lists the differnet callback function that can be made. 
  * 
  */
-static RegMON_WriteCallback callbacks[8] = {0};
+static RegMON_WriteCallback callbacks[MAX_WRITE_CALLBACK] = {0};
 
 
 /*****************************************************************************/
@@ -275,10 +275,13 @@ Regmon_status_e RegMON_SetWriteCallback(
     RegMON_WriteCallback cb
 )
 {
-    callbacks[callback_nr] = cb;
-    return REGMON_OK;
+    if (callback_nr < MAX_WRITE_CALLBACK)
+    {
+        callbacks[callback_nr] = cb;
+        return REGMON_OK;
+    }
+    return REGMON_ERROR;
 }
-
 /**
  * @brief Register Monitor function to reset registers to default values
  *  
