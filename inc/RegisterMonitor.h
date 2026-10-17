@@ -11,6 +11,7 @@
 #pragma once
 
 #include "stdint.h"
+#include "stdbool.h"
 
 /**
  * @brief Register monitor error codes.
@@ -45,9 +46,7 @@ typedef struct {
         uint32_t writeable : 1;                 // is register writeble
         uint32_t cyclic_readable : 1;           // is register cyclic read-able
         uint32_t cyclic_writeable : 1;          // is register cyclic write-able 
-        uint32_t Selected_cyclic_read : 1;      // is register currently selected in cyclic read
-        uint32_t Selected_cyclic_write : 1;     // is register currently selected in cyclic write
-        uint32_t reserved : 26;
+        uint32_t reserved : 28;
     }flags;
 }Register;
 
@@ -92,3 +91,6 @@ Regmon_status_e RegMON_write_register_block(
     uint32_t num_of_regs,
     uint32_t* values
 );
+
+Regmon_status_e RegMON_read_bit(uint32_t reg, uint8_t bitnum, uint8_t* dst);
+Regmon_status_e RegMON_write_bit(uint32_t reg, uint8_t bitnum, bool val);

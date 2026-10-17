@@ -271,18 +271,20 @@ Regmon_status_e RegMon_Init(const Register* ptr_list,
 Regmon_status_e RegMON_default_list(void)
 {
     Regmon_status_e status = REGMON_OK;
-    RegMON_Lock();
+    
+    if (regmon_default_values != NULL)
     {
-        if (regmon_default_values != NULL)
+        RegMON_Lock();
         {
             ResetToDefault();
         }
-        else
-        {
-            status = REGMON_ERROR;
-        }
+        RegMON_Unlock();
     }
-    RegMON_Unlock();
+    else
+    {
+        status = REGMON_ERROR;
+    }
+    
     return status;
 }
 
@@ -294,18 +296,19 @@ Regmon_status_e RegMON_default_list(void)
 Regmon_status_e RegMON_default_list_to_OEM(void)
 {
     Regmon_status_e status = REGMON_OK;
-    RegMON_Lock();
+    
+    if (regmon_oem_default_values != NULL)
     {
-        if (regmon_oem_default_values != NULL)
+        RegMON_Lock();
         {
             ResetToOEM();
         }
-        else
-        {
-            status = REGMON_ERROR;
-        }
+        RegMON_Unlock();
     }
-    RegMON_Unlock();
+    else
+    {
+        status = REGMON_ERROR;
+    }
     return status;
 }
 
@@ -319,26 +322,33 @@ Regmon_status_e RegMON_default_list_to_OEM(void)
 Regmon_status_e RegMon_read_register(uint32_t reg, uint32_t* dst)
 {
     Regmon_status_e status = REGMON_OK;
-    RegMON_Lock();
+    if (dst != NULL)
     {
-        if (reg < number_of_registers)
-        {
-            if (register_list[reg].flags.readable)
+
+            if (reg < number_of_registers)
             {
-                *dst = register_list[reg].value;
+                if (register_list[reg].flags.readable)
+                {
+                    RegMON_Lock();
+                    {
+                        *dst = register_list[reg].value;
+                    }
+                    RegMON_Unlock();
+                }
+                else
+                {
+                    status = REGMON_ADDRESS_NOT_READABLE;
+                }
             }
             else
             {
-                status = REGMON_ADDRESS_NOT_READABLE;
+                status = REGMON_INVALID_ADDRESS;
             }
-        }
-        else
-        {
-            status = REGMON_INVALID_ADDRESS;
-        }
-
     }
-    RegMON_Unlock();
+    else
+    {
+        status = REGMON_ERROR;
+    }
     return status;
 }
 
@@ -352,11 +362,11 @@ Regmon_status_e RegMon_read_register(uint32_t reg, uint32_t* dst)
 Regmon_status_e RegMon_write_register(uint32_t reg, uint32_t value)
 {
     Regmon_status_e status = REGMON_OK;
-    RegMON_Lock();
+    if (reg < number_of_registers)
     {
-        if (reg < number_of_registers)
+        if (register_list[reg].flags.writeable)
         {
-            if (register_list[reg].flags.writeable)
+            RegMON_Lock();
             {
                 if (CheckValue(reg, value))
                 {
@@ -367,17 +377,17 @@ Regmon_status_e RegMon_write_register(uint32_t reg, uint32_t value)
                     status = REGMON_INVALID_VALUE;
                 }
             }
-            else
-            {
-                status = REGMON_ADDRESS_NOT_WRITEABLE;
-            }
+            RegMON_Unlock();
         }
         else
         {
-            status = REGMON_INVALID_ADDRESS;
+            status = REGMON_ADDRESS_NOT_WRITEABLE;
         }
     }
-    RegMON_Unlock();
+    else
+    {
+        status = REGMON_INVALID_ADDRESS;
+    }
     return status;
 }
 
@@ -396,16 +406,20 @@ Regmon_status_e RegMon_read_register_block(
 )
 {
     Regmon_status_e status = REGMON_OK;
-    RegMON_Lock();
+    if (dst != NULL)
     {
         if ((reg + num_of_regs) < number_of_registers)
         {
             if (CheckReadableMulti(reg, num_of_regs))
             {
-                for (uint32_t i = 0; i < num_of_regs; i++)
+                RegMON_Lock();
                 {
-                    dst[i] = register_list[reg + i].value; 
+                    for (uint32_t i = 0; i < num_of_regs; i++)
+                    {
+                        dst[i] = register_list[reg + i].value; 
+                    }
                 }
+                RegMON_Unlock();
             }
             else
             {
@@ -417,7 +431,10 @@ Regmon_status_e RegMon_read_register_block(
             status = REGMON_INVALID_ADDRESS;
         }
     }
-    RegMON_Unlock();
+    else
+    {
+        status = REGMON_ERROR;
+    }
     return status;
 }
 
@@ -428,23 +445,27 @@ Regmon_status_e RegMON_write_register_block(
 )
 {
     Regmon_status_e status = REGMON_OK;
-    RegMON_Lock();
+    if ((values != NULL) && (num_of_regs != 0))
     {
         if ((reg + num_of_regs) < number_of_registers)
         {
             if (CheckWriteableMulti(reg, num_of_regs))
             {
-                if (CheckValueBlock(reg, num_of_regs, values))
+                RegMON_Lock();
                 {
-                    for (uint32_t i = 0; i < num_of_regs; i++)
+                    if (CheckValueBlock(reg, num_of_regs, values))
                     {
-                        register_list[reg + i].value = values[i];
+                        for (uint32_t i = 0; i < num_of_regs; i++)
+                        {
+                            register_list[reg + i].value = values[i];
+                        }
+                    }
+                    else 
+                    {
+                        status = REGMON_INVALID_VALUE;
                     }
                 }
-                else 
-                {
-                    status = REGMON_INVALID_VALUE;
-                }
+                RegMON_Unlock();
             }
             else
             {
@@ -456,6 +477,96 @@ Regmon_status_e RegMON_write_register_block(
             status = REGMON_INVALID_ADDRESS;
         }
     }
-    RegMON_Unlock();
+    else
+    {
+        status = REGMON_ERROR;
+    }
     return status;
+}
+
+/**
+ * @brief Register Monitor function to read a single bit in a register.
+ * 
+ * @param reg       Register to read from
+ * @param bitnum    bit number to read
+ * @param dst       pointer to buffer to readout bit
+ * @return Regmon_status_e status of operation.
+ */
+Regmon_status_e RegMON_read_bit(uint32_t reg, uint8_t bitnum, uint8_t* dst)
+{
+    Regmon_status_e status = REGMON_OK;
+    if ((dst != NULL) && (bitnum != 0) && (bitnum < 33))
+    {
+        if (reg < number_of_registers)
+        {
+            if (register_list[reg].flags.readable)
+            {   
+                RegMON_Lock();
+                {
+                    *dst = (register_list[reg].value << (bitnum - 1)) & 0x01;
+                }
+                RegMON_Unlock();
+            }
+            else
+            {
+                status = REGMON_ADDRESS_NOT_READABLE;
+            }
+        }
+        else 
+        {
+            status = REGMON_INVALID_ADDRESS;
+        }
+    }
+    else
+    {
+        status = REGMON_ERROR;
+    }
+    return status;
+}
+
+/**
+ * @brief Register monitor function to write a single bit in a register.
+ * 
+ * @param reg       register to write to 
+ * @param bitnum    bit number to write 
+ * @param val       bit value to write
+ * @return Regmon_status_e status of operation
+ */
+Regmon_status_e RegMON_write_bit(uint32_t reg, uint8_t bitnum, bool val)
+{
+    Regmon_status_e status = REGMON_OK;
+    if (bitnum != 0 && bitnum < 33)
+    {
+        if (reg < number_of_registers)
+        {
+            if (register_list[reg].flags.writeable)
+            {
+                RegMON_Lock();
+                {
+                    if (val)
+                    {
+                        register_list[reg].value |= (1 << (bitnum - 1));
+                    }
+                    else
+                    {
+                        register_list[reg].value &= ~(1 << (bitnum -1));
+                    }
+                }
+                RegMON_Unlock();
+            }
+            else
+            {
+                status = REGMON_ADDRESS_NOT_WRITEABLE;
+            }
+        }
+        else
+        {
+            status = REGMON_INVALID_ADDRESS;
+        }
+    }
+    else
+    {
+        status = REGMON_ERROR;
+    }
+    return REGMON_ERROR;
 }
