@@ -106,16 +106,16 @@ static void ResetToOEM()
  * 
  * @note we only check the value if the poiter to min and max are not NULL
  * 
- * @param reg       register we need
+ * @param reg_index register we need
  * @param value     value to check 
  * @return true     value are with params
  * @return false    value are outside params
  */
-static bool CheckValue(uint32_t reg, uint32_t value)
+static bool CheckValue(uint32_t reg_index, uint32_t value)
 {
     if (regmon_min_values != NULL)
     {
-        if (regmon_min_values[reg] > value)
+        if (regmon_min_values[reg_index] > value)
         {
             return false;
         }
@@ -123,7 +123,7 @@ static bool CheckValue(uint32_t reg, uint32_t value)
 
     if (regmon_max_values != NULL)
     {
-        if (regmon_max_values[reg] < value)
+        if (regmon_max_values[reg_index] < value)
         {
             return false;   
         }
@@ -134,16 +134,16 @@ static bool CheckValue(uint32_t reg, uint32_t value)
 /**
  * @brief Check if a block of registers is readable.
  * 
- * @param reg           Start register
+ * @param reg_index     Start register
  * @param num_of_regs   number of registers in block
  * @return true         all registers is readable
  * @return false        1 or more registers is not readable
  */
-static bool CheckReadableMulti(uint32_t reg, uint32_t num_of_regs)
+static bool CheckReadableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
     for (uint32_t i = 0; i < num_of_regs; i++)
     {
-        if (!register_list[reg].flags.readable)
+        if (!register_list[reg_index].flags.readable)
         {
             return false;
         }
@@ -154,16 +154,16 @@ static bool CheckReadableMulti(uint32_t reg, uint32_t num_of_regs)
 /**
  * @brief check if a block of registers is writeable.
  * 
- * @param reg           Start register
+ * @param reg_index     Start register
  * @param num_of_regs   number of registers in block
  * @return true         all registers is writable
  * @return false        1 or more registers is not writable
  */
-static bool CheckWriteableMulti(uint32_t reg, uint32_t num_of_regs)
+static bool CheckWriteableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
     for (uint32_t i = 0; i < num_of_regs; i++)
     {
-        if (!register_list[reg].flags.writeable)
+        if (!register_list[reg_index].flags.writeable)
         {
             return false;
         }
@@ -174,19 +174,19 @@ static bool CheckWriteableMulti(uint32_t reg, uint32_t num_of_regs)
 /**
  * @brief Function to check values going into a block
  * 
- * @param reg           First register in block
+ * @param reg_index     First register in block
  * @param num_of_regs   number of register in block
  * @param values        pointer to values to check
  * @return true         All values are within params
  * @return false        1 or more values are outside params
  */
-static bool CheckValueBlock(uint32_t reg, uint32_t num_of_regs, uint32_t* values)
+static bool CheckValueBlock(uint32_t reg_index, uint32_t num_of_regs, uint32_t* values)
 {
     for (uint32_t i = 0; i < num_of_regs; i++)
     {
         if (regmon_min_values != NULL)
         {   
-            if (regmon_min_values[reg + i] > values[i])
+            if (regmon_min_values[reg_index + i] > values[i])
             {
                 return false;
             }
@@ -194,7 +194,7 @@ static bool CheckValueBlock(uint32_t reg, uint32_t num_of_regs, uint32_t* values
 
         if (regmon_max_values != NULL)
         {
-            if (regmon_max_values[reg + i] < values[i])
+            if (regmon_max_values[reg_index + i] < values[i])
             {
                 return false;   
             }
@@ -315,23 +315,23 @@ Regmon_status_e RegMON_default_list_to_OEM(void)
 /**
  * @brief Register monitor read register function
  * 
- * @param reg register number to read
+ * @param reg_index register number to read
  * @param dst pointer where to readout the register.
  * @return Regmon_status_e Status of operation. 
  */
-Regmon_status_e RegMon_read_register(uint32_t reg, uint32_t* dst)
+Regmon_status_e RegMon_read_register(uint32_t reg_index, uint32_t* dst)
 {
     Regmon_status_e status = REGMON_OK;
     if (dst != NULL)
     {
 
-            if (reg < number_of_registers)
+            if (reg_index < number_of_registers)
             {
-                if (register_list[reg].flags.readable)
+                if (register_list[reg_index].flags.readable)
                 {
                     RegMON_Lock();
                     {
-                        *dst = register_list[reg].value;
+                        *dst = register_list[reg_index].value;
                     }
                     RegMON_Unlock();
                 }
@@ -355,22 +355,22 @@ Regmon_status_e RegMon_read_register(uint32_t reg, uint32_t* dst)
 /**
  * @brief Register monitor function to write a register.
  * 
- * @param reg   register number to write to
+ * @param reg_index register number to write to
  * @param value value to write
  * @return Regmon_status_e status of operation.
  */
-Regmon_status_e RegMon_write_register(uint32_t reg, uint32_t value)
+Regmon_status_e RegMon_write_register(uint32_t reg_index, uint32_t value)
 {
     Regmon_status_e status = REGMON_OK;
-    if (reg < number_of_registers)
+    if (reg_index < number_of_registers)
     {
-        if (register_list[reg].flags.writeable)
+        if (register_list[reg_index].flags.writeable)
         {
             RegMON_Lock();
             {
-                if (CheckValue(reg, value))
+                if (CheckValue(reg_index, value))
                 {
-                    register_list[reg].value = value;
+                    register_list[reg_index].value = value;
                 }
                 else
                 {
@@ -394,13 +394,13 @@ Regmon_status_e RegMon_write_register(uint32_t reg, uint32_t value)
 /**
  * @brief Register monitor funcion to read a block of register.
  * 
- * @param reg           Register number to start from 
+ * @param reg_index     Register number to start from 
  * @param num_of_regs   number of register in block
  * @param dst           pointer to register buffer
  * @return Regmon_status_e Status of operation.
  */
 Regmon_status_e RegMon_read_register_block(
-    uint32_t reg,
+    uint32_t reg_index,
     uint32_t num_of_regs,
     uint32_t* dst
 )
@@ -408,15 +408,15 @@ Regmon_status_e RegMon_read_register_block(
     Regmon_status_e status = REGMON_OK;
     if (dst != NULL)
     {
-        if ((reg + num_of_regs) < number_of_registers)
+        if ((reg_index + num_of_regs) < number_of_registers)
         {
-            if (CheckReadableMulti(reg, num_of_regs))
+            if (CheckReadableMulti(reg_index, num_of_regs))
             {
                 RegMON_Lock();
                 {
                     for (uint32_t i = 0; i < num_of_regs; i++)
                     {
-                        dst[i] = register_list[reg + i].value; 
+                        dst[i] = register_list[reg_index + i].value; 
                     }
                 }
                 RegMON_Unlock();
@@ -439,7 +439,7 @@ Regmon_status_e RegMon_read_register_block(
 }
 
 Regmon_status_e RegMON_write_register_block(
-    uint32_t reg,
+    uint32_t reg_index,
     uint32_t num_of_regs,
     uint32_t* values
 )
@@ -447,17 +447,17 @@ Regmon_status_e RegMON_write_register_block(
     Regmon_status_e status = REGMON_OK;
     if ((values != NULL) && (num_of_regs != 0))
     {
-        if ((reg + num_of_regs) < number_of_registers)
+        if ((reg_index + num_of_regs) < number_of_registers)
         {
-            if (CheckWriteableMulti(reg, num_of_regs))
+            if (CheckWriteableMulti(reg_index, num_of_regs))
             {
                 RegMON_Lock();
                 {
-                    if (CheckValueBlock(reg, num_of_regs, values))
+                    if (CheckValueBlock(reg_index, num_of_regs, values))
                     {
                         for (uint32_t i = 0; i < num_of_regs; i++)
                         {
-                            register_list[reg + i].value = values[i];
+                            register_list[reg_index + i].value = values[i];
                         }
                     }
                     else 
@@ -487,23 +487,23 @@ Regmon_status_e RegMON_write_register_block(
 /**
  * @brief Register Monitor function to read a single bit in a register.
  * 
- * @param reg       Register to read from
+ * @param reg_index Register to read from
  * @param bitnum    bit number to read
  * @param dst       pointer to buffer to readout bit
  * @return Regmon_status_e status of operation.
  */
-Regmon_status_e RegMON_read_bit(uint32_t reg, uint8_t bitnum, uint8_t* dst)
+Regmon_status_e RegMON_read_bit(uint32_t reg_index, uint8_t bitnum, uint8_t* dst)
 {
     Regmon_status_e status = REGMON_OK;
     if ((dst != NULL) && (bitnum != 0) && (bitnum < 33))
     {
-        if (reg < number_of_registers)
+        if (reg_index < number_of_registers)
         {
-            if (register_list[reg].flags.readable)
+            if (register_list[reg_index].flags.readable)
             {   
                 RegMON_Lock();
                 {
-                    *dst = (register_list[reg].value >> (bitnum - 1)) & 0x01;
+                    *dst = (register_list[reg_index].value >> (bitnum - 1)) & 0x01;
                 }
                 RegMON_Unlock();
             }
@@ -527,29 +527,29 @@ Regmon_status_e RegMON_read_bit(uint32_t reg, uint8_t bitnum, uint8_t* dst)
 /**
  * @brief Register monitor function to write a single bit in a register.
  * 
- * @param reg       register to write to 
+ * @param reg_index register to write to 
  * @param bitnum    bit number to write 
  * @param val       bit value to write
  * @return Regmon_status_e status of operation
  */
-Regmon_status_e RegMON_write_bit(uint32_t reg, uint8_t bitnum, bool val)
+Regmon_status_e RegMON_write_bit(uint32_t reg_index, uint8_t bitnum, bool val)
 {
     Regmon_status_e status = REGMON_OK;
     if (bitnum != 0 && bitnum < 33)
     {
-        if (reg < number_of_registers)
+        if (reg_index < number_of_registers)
         {
-            if (register_list[reg].flags.writeable)
+            if (register_list[reg_index].flags.writeable)
             {
                 RegMON_Lock();
                 {
                     if (val)
                     {
-                        register_list[reg].value |= (1 << (bitnum - 1));
+                        register_list[reg_index].value |= (1 << (bitnum - 1));
                     }
                     else
                     {
-                        register_list[reg].value &= ~(1 << (bitnum -1));
+                        register_list[reg_index].value &= ~(1 << (bitnum -1));
                     }
                 }
                 RegMON_Unlock();

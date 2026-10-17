@@ -82,23 +82,23 @@ Regmon_status_e RegMon_SetMutexCallbacks(
 Regmon_status_e RegMON_default_list(void);
 Regmon_status_e RegMON_default_list_to_OEM(void);
 
-Regmon_status_e RegMon_read_register(uint32_t reg, uint32_t* dst);
-Regmon_status_e RegMon_write_register(uint32_t reg, uint32_t value);
+Regmon_status_e RegMon_read_register(uint32_t reg_index, uint32_t* dst);
+Regmon_status_e RegMon_write_register(uint32_t reg_index, uint32_t value);
 
 Regmon_status_e RegMon_read_register_block(
-    uint32_t reg,
+    uint32_t reg_index,
     uint32_t num_of_regs,
     uint32_t* dst
 );
 
 Regmon_status_e RegMON_write_register_block(
-    uint32_t reg,
+    uint32_t reg_index,
     uint32_t num_of_regs,
     uint32_t* values
 );
 
-Regmon_status_e RegMON_read_bit(uint32_t reg, uint8_t bitnum, uint8_t* dst);
-Regmon_status_e RegMON_write_bit(uint32_t reg, uint8_t bitnum, bool val);
+Regmon_status_e RegMON_read_bit(uint32_t reg_index, uint8_t bitnum, uint8_t* dst);
+Regmon_status_e RegMON_write_bit(uint32_t reg_index, uint8_t bitnum, bool val);
 
 #ifdef __cplusplus
 }
