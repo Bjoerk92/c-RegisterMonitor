@@ -48,7 +48,14 @@ static uint32_t* regmon_max_values;
  * number of register
  */
 static uint32_t number_of_registers = 0;
-                            
+
+/**
+ * callback table, lists the differnet callback function that can be made. 
+ * 
+ */
+static RegMON_WriteCallback callbacks[8] = {0};
+
+
 /*****************************************************************************/
 /*                          Variables for Mutex usage                        */
 /*****************************************************************************/
@@ -263,6 +270,15 @@ Regmon_status_e RegMon_Init(Register* ptr_list,
     return status;
 }
 
+Regmon_status_e RegMON_SetWriteCallback(
+    uint8_t callback_nr,
+    RegMON_WriteCallback cb
+)
+{
+    callbacks[callback_nr] = cb;
+    return REGMON_OK;
+}
+
 /**
  * @brief Register Monitor function to reset registers to default values
  *  
@@ -371,6 +387,10 @@ Regmon_status_e RegMon_write_register(uint32_t reg_index, uint32_t value)
                 if (CheckValue(reg_index, value))
                 {
                     register_list[reg_index].value = value;
+                    if (register_list[reg_index].flags.Write_callback)
+                    {
+                        callbacks[register_list[reg_index].flags.callback_number](value);
+                    }
                 }
                 else
                 {

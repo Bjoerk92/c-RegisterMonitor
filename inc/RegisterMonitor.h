@@ -13,6 +13,8 @@
 #include "stdint.h"
 #include "stdbool.h"
 
+#define MAX_WRITE_CALLBACK 8U
+
 /**
  * @brief Register monitor error codes.
  * 
@@ -45,8 +47,10 @@ typedef struct {
         uint32_t readable : 1;                  // is register readable
         uint32_t writeable : 1;                 // is register writeble
         uint32_t cyclic_readable : 1;           // is register cyclic read-able
-        uint32_t cyclic_writeable : 1;          // is register cyclic write-able 
-        uint32_t reserved : 28;
+        uint32_t cyclic_writeable : 1;          // is register cyclic write-able
+        uint32_t Write_callback : 1;            // does register have a callback
+        uint32_t callback_number : 3;           // call back number that
+        uint32_t reserved : 24;
     }flags;
 }Register;
 
@@ -55,6 +59,12 @@ typedef struct {
  * 
  */
 typedef void (*RegMon_MutexCallback)(void* context, uint32_t timeout);
+
+/**
+ * @brief Defines a register callback function when it is written to. 
+ * 
+ */
+typedef void (*RegMON_WriteCallback)(uint32_t value);
 
 /*****************************************************************************/
 /*                      Register monitor interface functions                 */
@@ -77,6 +87,11 @@ Regmon_status_e RegMon_SetMutexCallbacks(
     RegMon_MutexCallback lock,
     RegMon_MutexCallback unlock,
     void* context
+);
+
+Regmon_status_e RegMON_SetWriteCallback(
+    uint8_t callback_nr,
+    RegMON_WriteCallback cb
 );
 
 Regmon_status_e RegMON_default_list(void);

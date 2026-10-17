@@ -14,6 +14,18 @@
 
 constexpr int number_of_registers = 6;
 
+namespace
+{
+uint32_t write_callback_value = 0;
+uint32_t write_callback_call_count = 0;
+
+void CaptureWriteCallback(uint32_t value)
+{
+    write_callback_value = value;
+    ++write_callback_call_count;
+}
+}
+
 void SetUpRegisters(std::array<Register, number_of_registers>& registers)
 {
     // Device ID
@@ -237,6 +249,24 @@ TEST_F(RegisterMonitorWriteTest, WritesValueToWriteableRegister)
 
     EXPECT_EQ(RegMon_write_register(2, new_value), REGMON_OK);
     EXPECT_EQ(registers[2].value, new_value);
+}
+
+// Writing a register configured with a callback invokes it with the written value.
+TEST_F(RegisterMonitorWriteTest, InvokesConfiguredWriteCallback)
+{
+    constexpr uint8_t callback_number = 0;
+    constexpr uint32_t new_value = 4321;
+    write_callback_value = 0;
+    write_callback_call_count = 0;
+
+    registers[2].flags.Write_callback = true;
+    registers[2].flags.callback_number = callback_number;
+    ASSERT_EQ(RegMON_SetWriteCallback(callback_number, CaptureWriteCallback), REGMON_OK);
+
+    EXPECT_EQ(RegMon_write_register(2, new_value), REGMON_OK);
+    EXPECT_EQ(registers[2].value, new_value);
+    EXPECT_EQ(write_callback_call_count, 1);
+    EXPECT_EQ(write_callback_value, new_value);
 }
 
 // Writing fails when the register index is outside the configured list.
