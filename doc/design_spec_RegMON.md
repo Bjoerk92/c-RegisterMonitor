@@ -49,8 +49,7 @@ left to right direction
 actor "User Interface" as user
 actor "Internal Interface" as if
 rectangle "Register Monitor" as regmon{
-    usecase "UC6: Read/Write protected data" as uc6
-    usecase "UC5: Initialize RegMON" as uc5
+    usecase "UC5: Read/Write protected data" as uc5
     usecase "UC4: Read/Write Bitmask" as uc4
     usecase "UC3: Read/Write Cyclic Registers" as uc3
     usecase "UC2: Read/Write Register blocks" as uc2
@@ -64,14 +63,12 @@ user -- uc3
 user -- uc4
 
 if -- uc5
-if -- uc6
 
 uc1 -- reg
 uc2 -- reg
 uc3 -- reg
 uc4 -- reg
 uc5 -- reg
-uc6 -- reg
 @enduml
 ```
 
@@ -93,3 +90,18 @@ This use case allows the different component to read or write single registers v
 ***UC2: Read/Write Register Blocs***
 This use case allows the different component to access blocks of registers at once.  
 A block is defined a coherent number of registers.
+
+Eg. start at address x and read 3 address, will give register x, x+1 and x+2.
+
+***UC3: Read/Write Cyclic Registers***  
+This use cases allows component to collect group of registers that are marked for cyclic handling. 
+
+> Note! That cyclic registers are mainly an industrial practice to read/write registers in a specific cyclic manor! See more about this under chapter x
+
+***UC4: Read/Write Bitmask***  
+This Use case allows component to read or write a bitmask to a register.  
+Eg. If Status bit is used, reading and writing a register to flip 1 or 2 bits is not quick. Writing a mask into the register can be a lot more effectively.
+
+***UC5: Read/Write Protected Data***
+This use case is special, as it allows the system to handle registers that normally would be read-only to be read.  
+eg. The Register Monitor is requested from a serial connection to write a register that is read-only. This is stopped. But if a controlling component is requesting to write the same register is not stopped.
