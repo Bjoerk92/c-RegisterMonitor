@@ -59,8 +59,21 @@ static RegMON_WriteCallback callbacks[MAX_WRITE_CALLBACK] = {0};
 /*****************************************************************************/
 /*                          Variables for Mutex usage                        */
 /*****************************************************************************/
+
+/**
+ * Callback to lock the mutex/semaphore
+ */
 static RegMon_MutexCallback mutex_lock;
+
+/**
+ * Callback to unlock the mutex/semaphore
+ */
 static RegMon_MutexCallback mutex_unlock;
+
+/**
+ * poiter to the mutex/Semaphore
+ * 
+ */
 static void* mutex_context;
 
 
@@ -343,26 +356,25 @@ Regmon_status_e RegMon_read_register(uint32_t reg_index, uint32_t* dst)
     Regmon_status_e status = REGMON_OK;
     if (dst != NULL)
     {
-
-            if (reg_index < number_of_registers)
+        if (reg_index < number_of_registers)
+        {
+            if (register_list[reg_index].flags.readable)
             {
-                if (register_list[reg_index].flags.readable)
+                RegMON_Lock();
                 {
-                    RegMON_Lock();
-                    {
-                        *dst = register_list[reg_index].value;
-                    }
-                    RegMON_Unlock();
+                    *dst = register_list[reg_index].value;
                 }
-                else
-                {
-                    status = REGMON_ADDRESS_NOT_READABLE;
-                }
+                RegMON_Unlock();
             }
             else
             {
-                status = REGMON_INVALID_ADDRESS;
+                status = REGMON_ADDRESS_NOT_READABLE;
             }
+        }
+        else
+        {
+            status = REGMON_INVALID_ADDRESS;
+        }
     }
     else
     {
