@@ -30,44 +30,46 @@ void CaptureWriteCallback(uint32_t value)
 }
 
 // Populate a register map with readable, writable, and restricted examples.
-void SetUpRegisters(std::array<Register, number_of_registers>& registers)
+void SetUpRegisters(
+    std::array<uint32_t, number_of_registers>& register_values,
+    std::array<Register_flag_t, number_of_registers>& register_flags)
 {
     // Device ID
-    registers[0].value = 0x20100000;
-    registers[0].flags.readable = true;
-    registers[0].flags.writeable = false;
+    register_values[0] = 0x20100000;
+    register_flags[0].readable = true;
+    register_flags[0].writeable = false;
 
     // Device model
-    registers[1].value = 0x00000001;
-    registers[1].flags.readable = true;
-    registers[1].flags.writeable = false;
+    register_values[1] = 0x00000001;
+    register_flags[1].readable = true;
+    register_flags[1].writeable = false;
 
     // Actual Speed
-    registers[2].value = 0;
-    registers[2].flags.readable = true;
-    registers[2].flags.writeable = true;
+    register_values[2] = 0;
+    register_flags[2].readable = true;
+    register_flags[2].writeable = true;
 
     // Actual position
-    registers[3].value = 0;
-    registers[3].flags.readable = true;
-    registers[3].flags.writeable = true;
+    register_values[3] = 0;
+    register_flags[3].readable = true;
+    register_flags[3].writeable = true;
 
     // Operation bit 
-    registers[4].value = 0x00000101;
-    registers[4].flags.readable = true;
-    registers[4].flags.writeable = false;
+    register_values[4] = 0x00000101;
+    register_flags[4].readable = true;
+    register_flags[4].writeable = false;
 
     // Status bit
-    registers[5].value = 0x0101;
-    registers[5].flags.readable = false;
-    registers[5].flags.writeable = false;
+    register_values[5] = 0x0101;
+    register_flags[5].readable = false;
+    register_flags[5].writeable = false;
 
     // User registers
     for (int i = first_user_register; i < number_of_registers; ++i)
     {
-        registers[i].value = 0;
-        registers[i].flags.readable = true;
-        registers[i].flags.writeable = true;
+        register_values[i] = 0;
+        register_flags[i].readable = true;
+        register_flags[i].writeable = true;
     }
 }
 }
@@ -78,17 +80,19 @@ void SetUpRegisters(std::array<Register, number_of_registers>& registers)
 // Initialization succeeds when given a non-null register list and non-zero size.
 TEST(RegisterMonitorInit, ReturnsOkForValidRegisterList)
 {
-    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> register_values{};
+    std::array<Register_flag_t, number_of_registers> register_flags{};
     std::array<uint32_t, number_of_registers> defaults{};
     std::array<uint32_t, number_of_registers> min_values{};
     std::array<uint32_t, number_of_registers> max_values{};
 
     EXPECT_EQ(
         RegMon_Init(
-            registers.data(),
+            register_values.data(),
             defaults.data(),
             min_values.data(),
             max_values.data(),
+            register_flags.data(),
             number_of_registers),
         REGMON_OK);
 }
@@ -96,14 +100,25 @@ TEST(RegisterMonitorInit, ReturnsOkForValidRegisterList)
 // Initialization rejects a null register list.
 TEST(RegisterMonitorInit, ReturnsErrorForNullRegisterList)
 {
-    EXPECT_EQ(RegMon_Init(nullptr, nullptr, nullptr, nullptr, number_of_registers), REGMON_INVALID_PARAM);
+    EXPECT_EQ(
+        RegMon_Init(nullptr, nullptr, nullptr, nullptr, nullptr, number_of_registers),
+        REGMON_INVALID_PARAM);
 }
 
 // Initialization rejects a register list with no entries.
 TEST(RegisterMonitorInit, ReturnsErrorForEmptyRegisterList)
 {
-    std::array<Register, number_of_registers> registers{};
-    EXPECT_EQ(RegMon_Init(registers.data(), nullptr, nullptr, nullptr, 0), REGMON_INVALID_PARAM);
+    std::array<uint32_t, number_of_registers> register_values{};
+    std::array<Register_flag_t, number_of_registers> register_flags{};
+    EXPECT_EQ(
+        RegMon_Init(
+            register_values.data(),
+            nullptr,
+            nullptr,
+            nullptr,
+            register_flags.data(),
+            0),
+        REGMON_INVALID_PARAM);
 }
 
 // Register read tests
@@ -113,14 +128,21 @@ TEST(RegisterMonitorInit, ReturnsErrorForEmptyRegisterList)
 class RegisterMonitorReadTest : public ::testing::Test
 {
 protected:
-    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> register_values{};
+    std::array<Register_flag_t, number_of_registers> register_flags{};
 
     // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
-        SetUpRegisters(registers);
+        SetUpRegisters(register_values, register_flags);
         ASSERT_EQ(
-            RegMon_Init(registers.data(), nullptr, nullptr, nullptr, number_of_registers),
+            RegMon_Init(
+                register_values.data(),
+                nullptr,
+                nullptr,
+                nullptr,
+                register_flags.data(),
+                number_of_registers),
             REGMON_OK);
     }
 };
@@ -178,14 +200,21 @@ TEST_F(RegisterMonitorReadTest, ReturnsNotReadableForUnreadableRegister)
 class RegisterMonitorReadBlockTest : public ::testing::Test
 {
 protected:
-    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> register_values{};
+    std::array<Register_flag_t, number_of_registers> register_flags{};
 
     // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
-        SetUpRegisters(registers);
+        SetUpRegisters(register_values, register_flags);
         ASSERT_EQ(
-            RegMon_Init(registers.data(), nullptr, nullptr, nullptr, number_of_registers),
+            RegMon_Init(
+                register_values.data(),
+                nullptr,
+                nullptr,
+                nullptr,
+                register_flags.data(),
+                number_of_registers),
             REGMON_OK);
     }
 };
@@ -203,8 +232,8 @@ TEST_F(RegisterMonitorReadBlockTest, ReadsValuesFromReadableRegisterBlock)
 // A valid block can include the final zero-based register index.
 TEST_F(RegisterMonitorReadBlockTest, ReadsBlockEndingAtLastRegister)
 {
-    registers[5].value = 0xABCD;
-    registers[5].flags.readable = true;
+    register_values[5] = 0xABCD;
+    register_flags[5].readable = true;
     std::array<uint32_t, 2> values{};
 
     EXPECT_EQ(RegMon_read_register_block(4, values.size(), values.data()), REGMON_OK);
@@ -253,21 +282,23 @@ TEST_F(RegisterMonitorReadBlockTest, ReturnsNotReadableWhenBlockContainsUnreadab
 class RegisterMonitorWriteTest : public ::testing::Test
 {
 protected:
-    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> register_values{};
+    std::array<Register_flag_t, number_of_registers> register_flags{};
     std::array<uint32_t, number_of_registers> min_values{};
     std::array<uint32_t, number_of_registers> max_values{};
 
     // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
-        SetUpRegisters(registers);
+        SetUpRegisters(register_values, register_flags);
         max_values.fill(0xFFFFFFFFu);
         ASSERT_EQ(
             RegMon_Init(
-                registers.data(),
+                register_values.data(),
                 nullptr,
                 min_values.data(),
                 max_values.data(),
+                register_flags.data(),
                 number_of_registers),
             REGMON_OK);
     }
@@ -279,7 +310,7 @@ TEST_F(RegisterMonitorWriteTest, WritesValueToWriteableRegister)
     constexpr uint32_t new_value = 1234;
 
     EXPECT_EQ(RegMon_write_register(2, new_value), REGMON_OK);
-    EXPECT_EQ(registers[2].value, new_value);
+    EXPECT_EQ(register_values[2], new_value);
 }
 
 // Writing a register configured with a callback invokes it with the written value.
@@ -290,12 +321,12 @@ TEST_F(RegisterMonitorWriteTest, InvokesConfiguredWriteCallback)
     write_callback_value = 0;
     write_callback_call_count = 0;
 
-    registers[2].flags.Write_callback = true;
-    registers[2].flags.callback_number = callback_number;
+    register_flags[2].Write_callback = true;
+    register_flags[2].callback_number = callback_number;
     ASSERT_EQ(RegMON_SetWriteCallback(callback_number, CaptureWriteCallback), REGMON_OK);
 
     EXPECT_EQ(RegMon_write_register(2, new_value), REGMON_OK);
-    EXPECT_EQ(registers[2].value, new_value);
+    EXPECT_EQ(register_values[2], new_value);
     EXPECT_EQ(write_callback_call_count, 1);
     EXPECT_EQ(write_callback_value, new_value);
 }
@@ -320,7 +351,7 @@ TEST_F(RegisterMonitorWriteTest, RejectsValueBelowMinimum)
     min_values[2] = 10;
 
     EXPECT_EQ(RegMon_write_register(2, 9), REGMON_INVALID_VALUE);
-    EXPECT_EQ(registers[2].value, 0);
+    EXPECT_EQ(register_values[2], 0);
 }
 
 // Writing a value above the configured maximum is rejected without changing it.
@@ -329,7 +360,7 @@ TEST_F(RegisterMonitorWriteTest, RejectsValueAboveMaximum)
     max_values[2] = 20;
 
     EXPECT_EQ(RegMon_write_register(2, 21), REGMON_INVALID_VALUE);
-    EXPECT_EQ(registers[2].value, 0);
+    EXPECT_EQ(register_values[2], 0);
 }
 
 // Register block write tests
@@ -339,21 +370,23 @@ TEST_F(RegisterMonitorWriteTest, RejectsValueAboveMaximum)
 class RegisterMonitorWriteBlockTest : public ::testing::Test
 {
 protected:
-    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> register_values{};
+    std::array<Register_flag_t, number_of_registers> register_flags{};
     std::array<uint32_t, number_of_registers> min_values{};
     std::array<uint32_t, number_of_registers> max_values{};
 
     // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
-        SetUpRegisters(registers);
+        SetUpRegisters(register_values, register_flags);
         max_values.fill(0xFFFFFFFFu);
         ASSERT_EQ(
             RegMon_Init(
-                registers.data(),
+                register_values.data(),
                 nullptr,
                 min_values.data(),
                 max_values.data(),
+                register_flags.data(),
                 number_of_registers),
             REGMON_OK);
     }
@@ -365,20 +398,20 @@ TEST_F(RegisterMonitorWriteBlockTest, WritesValuesToWriteableRegisterBlock)
     std::array<uint32_t, 2> values{1234, 5678};
 
     EXPECT_EQ(RegMON_write_register_block(2, values.size(), values.data()), REGMON_OK);
-    EXPECT_EQ(registers[2].value, values[0]);
-    EXPECT_EQ(registers[3].value, values[1]);
+    EXPECT_EQ(register_values[2], values[0]);
+    EXPECT_EQ(register_values[3], values[1]);
 }
 
 // A valid block write can include the final zero-based register index.
 TEST_F(RegisterMonitorWriteBlockTest, WritesBlockEndingAtLastRegister)
 {
-    registers[4].flags.writeable = true;
-    registers[5].flags.writeable = true;
+    register_flags[4].writeable = true;
+    register_flags[5].writeable = true;
     std::array<uint32_t, 2> values{1234, 5678};
 
     EXPECT_EQ(RegMON_write_register_block(4, values.size(), values.data()), REGMON_OK);
-    EXPECT_EQ(registers[4].value, values[0]);
-    EXPECT_EQ(registers[5].value, values[1]);
+    EXPECT_EQ(register_values[4], values[0]);
+    EXPECT_EQ(register_values[5], values[1]);
 }
 
 // Writing a block fails when the input values pointer is null.
@@ -424,8 +457,8 @@ TEST_F(RegisterMonitorWriteBlockTest, RejectsOutOfRangeValueWithoutChangingBlock
     EXPECT_EQ(
         RegMON_write_register_block(2, values.size(), values.data()),
         REGMON_INVALID_VALUE);
-    EXPECT_EQ(registers[2].value, 0);
-    EXPECT_EQ(registers[3].value, 0);
+    EXPECT_EQ(register_values[2], 0);
+    EXPECT_EQ(register_values[3], 0);
 }
 
 // Register group test
@@ -435,7 +468,8 @@ TEST_F(RegisterMonitorWriteBlockTest, RejectsOutOfRangeValueWithoutChangingBlock
 class RegisterMonitorGroupTest : public ::testing::Test
 {
 protected:
-    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> register_values{};
+    std::array<Register_flag_t, number_of_registers> register_flags{};
     std::array<uint32_t, number_of_registers> min_values{};
     std::array<uint32_t, number_of_registers> max_values{};
     std::array<uint16_t, MAX_GROUP_SIZE> Group{
@@ -444,14 +478,15 @@ protected:
     // Reset the register map and initialize the monitor before every test.
     void SetUp() override
     {
-        SetUpRegisters(registers);
+        SetUpRegisters(register_values, register_flags);
         max_values.fill(0xFFFFFFFFu);
         ASSERT_EQ(
             RegMon_Init(
-                registers.data(),
+                register_values.data(),
                 nullptr,
                 min_values.data(),
                 max_values.data(),
+                register_flags.data(),
                 number_of_registers),
             REGMON_OK);
     }
