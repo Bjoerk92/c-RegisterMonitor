@@ -69,6 +69,7 @@ typedef struct
 /*****************************************************************************/
 
 #ifdef __cplusplus
+// here for Google unit test
 extern "C"
 {
 #endif
