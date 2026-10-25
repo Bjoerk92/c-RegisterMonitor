@@ -172,7 +172,7 @@ static bool CheckReadableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
     for (uint32_t itr = 0; itr < num_of_regs; itr++)
     {
-        if (!flags[itr].readable)
+        if (!flags[reg_index + itr].readable)
         {
             return false;
         }
@@ -192,7 +192,7 @@ static bool CheckWriteableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
     for (uint32_t itr = 0; itr < num_of_regs; itr++)
     {
-        if (!flags[itr].writeable)
+        if (!flags[reg_index + itr].writeable)
         {
             return false;
         }
@@ -256,7 +256,7 @@ Regmon_status_e RegMon_Init(uint32_t* ptr_list,
 {
     Regmon_status_e status = REGMON_OK;
 
-    if (ptr_list == NULL || flags == NULL || list_size == 0)
+    if (ptr_list == NULL || ptr_flags == NULL || list_size == 0)
     {
         status = REGMON_INVALID_PARAM;
     }
