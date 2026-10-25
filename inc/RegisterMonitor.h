@@ -10,27 +10,15 @@
  */
 #pragma once
 
-#include "stdint.h"
 #include "stdbool.h"
+#include "stdint.h"
+#include "stddef.h"
+
+#include "RegiserMonitor_Status_Codes.h"
 
 #define MAX_WRITE_CALLBACK 8U
 #define MAX_GROUP (Register_Group_3 + 1)
 #define MAX_GROUP_SIZE 16
-/**
- * @brief Register monitor error codes.
- * 
- */
-typedef enum {
-    REGMON_OK = 0,
-    REGMON_ERROR = -1,
-    REGMON_INVALID_PARAM = -2,
-    REGMON_INVALID_VALUE = -3, 
-    REGMON_INVALID_ADDRESS = -4,
-    REGMON_ADDRESS_NOT_WRITEABLE = -5,
-    REGMON_ADDRESS_NOT_READABLE = -6,
-    REGMON_MUTEX_ERROR = -7,
-    REGMON_GROUP_EXCEED_SIZE = -8
-}Regmon_status_e;
 
 /**
  * @brief Register monitors single register definition.

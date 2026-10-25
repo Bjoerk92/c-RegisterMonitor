@@ -9,9 +9,7 @@
  * 
  */
 #include "RegisterMonitor.h"
-
-#include "stdbool.h"
-#include "stdint.h"
+#include "RegiserMonitor_Status_Codes.h"
 
 /*****************************************************************************/
 /*                       Variables for Register setup                        */
