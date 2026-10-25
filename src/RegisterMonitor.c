@@ -18,7 +18,7 @@
 /**
  * Pointer to the register list. 
  */
-static Register* register_list = NULL;
+static uint32_t* register_list = NULL;
 
 /**
  * Pointer to the registers default/factory values.
@@ -46,6 +46,11 @@ static uint32_t* regmon_max_values;
  * number of register
  */
 static uint32_t number_of_registers = 0;
+
+/**
+ * Register flags
+ */
+static Register_flag_t* flags = NULL;
 
 /**
  * callback table, lists the differnet callback function that can be made. 
@@ -113,7 +118,7 @@ static void ResetToDefault()
 {
     for (uint32_t i = 0; i < number_of_registers; i++)
     {
-        register_list[i].value = regmon_default_values[i];
+        register_list[i] = regmon_default_values[i];
     }
 }
 
@@ -121,7 +126,7 @@ static void ResetToOEM()
 {
     for (uint32_t i = 0; i < number_of_registers; i++)
     {
-        register_list[i].value = regmon_oem_default_values[i];
+        register_list[i] = regmon_oem_default_values[i];
     }
 }
 
@@ -165,9 +170,9 @@ static bool CheckValue(uint32_t reg_index, uint32_t value)
  */
 static bool CheckReadableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
-    for (uint32_t i = 0; i < num_of_regs; i++)
+    for (uint32_t itr = 0; itr < num_of_regs; itr++)
     {
-        if (!register_list[reg_index + i].flags.readable)
+        if (!flags[itr].readable)
         {
             return false;
         }
@@ -185,9 +190,9 @@ static bool CheckReadableMulti(uint32_t reg_index, uint32_t num_of_regs)
  */
 static bool CheckWriteableMulti(uint32_t reg_index, uint32_t num_of_regs)
 {
-    for (uint32_t i = 0; i < num_of_regs; i++)
+    for (uint32_t itr = 0; itr < num_of_regs; itr++)
     {
-        if (!register_list[reg_index + i].flags.writeable)
+        if (!flags[itr].writeable)
         {
             return false;
         }
@@ -241,16 +246,17 @@ static bool CheckValueBlock(uint32_t reg_index, uint32_t num_of_regs, uint32_t* 
  * @param list_size         number of registers.
  * @return Regmon_status_e 
  */
-Regmon_status_e RegMon_Init(Register* ptr_list,
+Regmon_status_e RegMon_Init(uint32_t* ptr_list,
                             uint32_t* default_values,
                             uint32_t* min,
                             uint32_t* max,
+                            Register_flag_t* ptr_flags,
                             uint32_t list_size
 )
 {
     Regmon_status_e status = REGMON_OK;
 
-    if (ptr_list == NULL || list_size == 0)
+    if (ptr_list == NULL || flags == NULL || list_size == 0)
     {
         status = REGMON_INVALID_PARAM;
     }
@@ -260,6 +266,7 @@ Regmon_status_e RegMon_Init(Register* ptr_list,
         regmon_default_values = default_values;
         regmon_max_values = max;
         regmon_min_values = min;
+        flags = ptr_flags;
         number_of_registers = list_size;
     }
     return status;
@@ -433,11 +440,11 @@ Regmon_status_e RegMon_read_register(uint32_t reg_index, uint32_t* dst)
     {
         if (reg_index < number_of_registers)
         {
-            if (register_list[reg_index].flags.readable)
+            if (flags[reg_index].readable)
             {
                 RegMON_Lock();
                 {
-                    *dst = register_list[reg_index].value;
+                    *dst = register_list[reg_index];
                 }
                 RegMON_Unlock();
             }
@@ -470,16 +477,16 @@ Regmon_status_e RegMon_write_register(uint32_t reg_index, uint32_t value)
     Regmon_status_e status = REGMON_OK;
     if (reg_index < number_of_registers)
     {
-        if (register_list[reg_index].flags.writeable)
+        if (flags[reg_index].writeable)
         {
             RegMON_Lock();
             {
                 if (CheckValue(reg_index, value))
                 {
-                    register_list[reg_index].value = value;
-                    if (register_list[reg_index].flags.Write_callback)
+                    register_list[reg_index] = value;
+                    if (flags[reg_index].Write_callback)
                     {
-                        callbacks[register_list[reg_index].flags.callback_number](value);
+                        callbacks[flags[reg_index].callback_number](value);
                     }
                 }
                 else
@@ -527,7 +534,7 @@ Regmon_status_e RegMon_read_register_block(
                 {
                     for (uint32_t i = 0; i < num_of_regs; i++)
                     {
-                        dst[i] = register_list[reg_index + i].value; 
+                        dst[i] = register_list[reg_index + i]; 
                     }
                 }
                 RegMON_Unlock();
@@ -569,7 +576,7 @@ Regmon_status_e RegMON_write_register_block(
                     {
                         for (uint32_t i = 0; i < num_of_regs; i++)
                         {
-                            register_list[reg_index + i].value = values[i];
+                            register_list[reg_index + i] = values[i];
                         }
                     }
                     else 
@@ -611,11 +618,11 @@ Regmon_status_e RegMON_read_bit(uint32_t reg_index, uint8_t bitnum, uint8_t* dst
     {
         if (reg_index < number_of_registers)
         {
-            if (register_list[reg_index].flags.readable)
+            if (flags[reg_index].readable)
             {   
                 RegMON_Lock();
                 {
-                    *dst = (register_list[reg_index].value >> (bitnum - 1)) & 0x01;
+                    *dst = (register_list[reg_index] >> (bitnum - 1)) & 0x01;
                 }
                 RegMON_Unlock();
             }
@@ -651,17 +658,17 @@ Regmon_status_e RegMON_write_bit(uint32_t reg_index, uint8_t bitnum, bool val)
     {
         if (reg_index < number_of_registers)
         {
-            if (register_list[reg_index].flags.writeable)
+            if (flags[reg_index].writeable)
             {
                 RegMON_Lock();
                 {
                     if (val)
                     {
-                        register_list[reg_index].value |= (1 << (bitnum - 1));
+                        register_list[reg_index] |= (1 << (bitnum - 1));
                     }
                     else
                     {
-                        register_list[reg_index].value &= ~(1 << (bitnum -1));
+                        register_list[reg_index] &= ~(1 << (bitnum -1));
                     }
                 }
                 RegMON_Unlock();
@@ -699,7 +706,7 @@ Regmon_status_e RegMON_ReadGroup(RegMon_group_t* dst)
         {
             if (RegisterGroup[dst->group][itr] != 0)
             {
-                dst->reg_values[itr] = register_list[RegisterGroup[dst->group][itr]].value;
+                dst->reg_values[itr] = register_list[RegisterGroup[dst->group][itr]];
             }
             else
             {
@@ -730,7 +737,7 @@ Regmon_status_e RegMON_WriteGroup(RegMon_group_t* src)
         {
             if (RegisterGroup[src->group][itr] != 0)
             {
-                register_list[RegisterGroup[src->group][itr]].value = src->reg_values[itr];
+                register_list[RegisterGroup[src->group][itr]] = src->reg_values[itr];
             }
             else
             {

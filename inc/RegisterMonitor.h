@@ -21,25 +21,18 @@
 #define MAX_GROUP_SIZE 16
 
 /**
- * @brief Register monitors single register definition.
+ * @brief Register monitors register flags. 
+ * @details Each register needs to have flag to indicate register capability.
  * 
  */
-typedef struct {
-    volatile uint32_t value;                    // value of register
-    
-    /**
-     * @brief Flags used to indicate registers operation and functions
-     * 
-     */
-    struct
-    {
-        uint32_t readable : 1;                  // is register readable
-        uint32_t writeable : 1;                 // is register writeble
-        uint32_t Write_callback : 1;            // does register have a callback
-        uint32_t callback_number : 3;           // call back number that
-        uint32_t reserved : 26;                 // Reserved flags
-    }flags;
-}Register;
+typedef struct
+{
+    uint32_t readable : 1;                  // is register readable
+    uint32_t writeable : 1;                 // is register writeble
+    uint32_t Write_callback : 1;            // does register have a callback
+    uint32_t callback_number : 3;           // call back number that
+    uint32_t reserved : 26;                 // Reserved flags
+}Register_flag_t;
 
 /**
  * @brief defines the mutex callback function used by the register monitor.
@@ -81,10 +74,11 @@ extern "C"
 #endif
 
 Regmon_status_e RegMon_Init(
-    Register* ptr_list,
+    uint32_t* ptr_list,
     uint32_t* default_values,
     uint32_t* min,
     uint32_t* max,
+    Register_flag_t* flags,
     uint32_t list_size
 );
 
