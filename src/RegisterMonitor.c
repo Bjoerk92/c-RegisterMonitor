@@ -51,10 +51,13 @@ static uint32_t number_of_registers = 0;
 
 /**
  * callback table, lists the differnet callback function that can be made. 
- * 
  */
 static RegMON_WriteCallback callbacks[MAX_WRITE_CALLBACK] = {0};
 
+/**
+ * Array for Register group's registers.
+ */
+static uint16_t RegisterGroup [MAX_GROUP][MAX_GROUP_SIZE] = {0};
 
 /*****************************************************************************/
 /*                          Variables for Mutex usage                        */
@@ -76,6 +79,9 @@ static RegMon_MutexCallback mutex_unlock;
  */
 static void* mutex_context;
 
+/*****************************************************************************/
+/*                         Static functions                                  */
+/*****************************************************************************/
 
 /**
  * @brief Local function to mutex lock the register monitor
@@ -223,31 +229,9 @@ static bool CheckValueBlock(uint32_t reg_index, uint32_t num_of_regs, uint32_t* 
     return true;
 }
 
-/**
- * @brief Register Monitor function to set the usage of RTOS Mutex's
- * 
- * @note If Mutex protection is required
- * 
- * @param lock      Function pointer to lock function 
- * @param unlock    Function pointer to unlock function
- * @param context   pointer to the mutex context
- * @return Regmon_status_e Status of operation. 
- */
-Regmon_status_e RegMon_SetMutexCallbacks(
-    RegMon_MutexCallback lock,
-    RegMon_MutexCallback unlock,
-    void* context)
-{
-    if (((lock == NULL) || (unlock == NULL)) && lock == unlock)
-    {   // the function pointers cant be null or the same function!
-        return REGMON_ERROR;
-    }
-    // all is okay set the function pointers.
-    mutex_lock = lock;
-    mutex_unlock = unlock;
-    mutex_context = context;
-    return REGMON_OK;
-}
+/*****************************************************************************/
+/*                         Public functions                                  */
+/*****************************************************************************/
 
 /**
  * @brief Initialize the register monitor.
@@ -270,7 +254,7 @@ Regmon_status_e RegMon_Init(Register* ptr_list,
 
     if (ptr_list == NULL || list_size == 0)
     {
-        status = REGMON_ERROR;
+        status = REGMON_INVALID_PARAM;
     }
     else
     {   
@@ -283,6 +267,99 @@ Regmon_status_e RegMon_Init(Register* ptr_list,
     return status;
 }
 
+/**
+ * @brief Register Monitor function to set the usage of RTOS Mutex's
+ * 
+ * @note If Mutex protection is required
+ * 
+ * @param lock      Function pointer to lock function 
+ * @param unlock    Function pointer to unlock function
+ * @param context   pointer to the mutex context
+ * @return Regmon_status_e Status of operation. 
+ */
+Regmon_status_e RegMon_SetMutexCallbacks(
+    RegMon_MutexCallback lock,
+    RegMon_MutexCallback unlock,
+    void* context)
+{
+    if (((lock == NULL) || (unlock == NULL)) && lock == unlock)
+    {   // the function pointers cant be null or the same function!
+        return REGMON_INVALID_PARAM;
+    }
+    // all is okay set the function pointers.
+    mutex_lock = lock;
+    mutex_unlock = unlock;
+    mutex_context = context;
+    return REGMON_OK;
+}
+
+/**
+ * @brief Function to setup a Register Group.
+ * 
+ * @param reg_num       list of registers in the register group
+ * @param num_of_reg    number of registers in group, MAX 16!
+ * @param group         Group number to setup.
+ * @return Regmon_status_e status of operation.
+ */
+Regmon_status_e RegMon_SetupGroup(uint16_t* reg_num, size_t num_of_reg, RegMon_group_e group)
+{
+    Regmon_status_e status = REGMON_OK;
+    if (reg_num != NULL)
+    {
+        if (num_of_reg > 16)
+        {
+            status = REGMON_GROUP_EXCEED_SIZE;
+        }
+        else if (num_of_reg == 0)
+        {
+            status = REGMON_INVALID_PARAM;
+        }
+        else
+        {
+            RegMON_Lock();
+            {
+                for (size_t itr = 0; itr < num_of_reg; itr++)
+                {
+                    RegisterGroup[group][itr] = reg_num[itr];
+                }
+            }
+            RegMON_Unlock();
+        }
+    }
+    else
+    {
+        status = REGMON_INVALID_PARAM;
+    }
+    return status;
+}
+
+/**
+ * @brief Function to clear a Register Group.
+ * @note Clear -> Put all registers to 0
+ * 
+ * @param group Group number to clear
+ * @return Regmon_status_e status fo
+ */
+Regmon_status_e RegMON_ClearGroup(RegMon_group_e group)
+{
+    RegMON_Lock();
+    {
+        for (size_t itr = 0; itr < MAX_GROUP_SIZE; itr++)
+        {
+            RegisterGroup[group][itr] = 0;
+        }
+    }
+    RegMON_Unlock();
+    return REGMON_OK;
+}
+
+/**
+ * @brief Function to setup a callback function for a register when it is written to.
+ * 
+ * @param callback_nr   Call back number up to 8
+ * @param cb            callback function.
+ * @return Regmon_status_e status of operation.
+ */
 Regmon_status_e RegMON_SetWriteCallback(
     uint8_t callback_nr,
     RegMON_WriteCallback cb
@@ -378,7 +455,7 @@ Regmon_status_e RegMon_read_register(uint32_t reg_index, uint32_t* dst)
     }
     else
     {
-        status = REGMON_ERROR;
+        status = REGMON_INVALID_PARAM;
     }
     return status;
 }
@@ -469,7 +546,7 @@ Regmon_status_e RegMon_read_register_block(
     }
     else
     {
-        status = REGMON_ERROR;
+        status = REGMON_INVALID_PARAM;
     }
     return status;
 }
@@ -516,7 +593,7 @@ Regmon_status_e RegMON_write_register_block(
     }
     else
     {
-        status = REGMON_ERROR;
+        status = REGMON_INVALID_PARAM;
     }
     return status;
 }
@@ -556,7 +633,7 @@ Regmon_status_e RegMON_read_bit(uint32_t reg_index, uint8_t bitnum, uint8_t* dst
     }
     else
     {
-        status = REGMON_ERROR;
+        status = REGMON_INVALID_PARAM;
     }
     return status;
 }
@@ -606,4 +683,66 @@ Regmon_status_e RegMON_write_bit(uint32_t reg_index, uint8_t bitnum, bool val)
         status = REGMON_ERROR;
     }
     return REGMON_ERROR;
+}
+
+/**
+ * @brief Function to read a register group.
+ * 
+ * @param dst pointer to Register Group struct
+ * @return Regmon_status_e status of operation.
+ */
+Regmon_status_e RegMON_ReadGroup(RegMon_group_t* dst)
+{
+    Regmon_status_e status = REGMON_OK;
+
+    if (dst != NULL)
+    {
+        for (size_t itr = 0; itr < MAX_GROUP_SIZE; itr++)
+        {
+            if (RegisterGroup[dst->group][itr] != 0)
+            {
+                dst->reg_values[itr] = register_list[RegisterGroup[dst->group][itr]].value;
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    else
+    {
+        status = REGMON_INVALID_PARAM;
+    }
+    return status;
+}
+
+/**
+ * @brief Function to write a register group
+ * 
+ * @param src pointer to Register Group struct
+ * @return Regmon_status_e status of operation. 
+ */
+Regmon_status_e RegMON_WriteGroup(RegMon_group_t* src)
+{
+    Regmon_status_e status = REGMON_OK;
+
+    if (src != NULL)
+    {
+        for (size_t itr = 0; itr < MAX_GROUP_SIZE; itr++)
+        {
+            if (RegisterGroup[src->group][itr] != 0)
+            {
+                register_list[RegisterGroup[src->group][itr]].value = src->reg_values[itr];
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    else
+    {
+        status = REGMON_INVALID_PARAM;
+    }
+    return status;
 }

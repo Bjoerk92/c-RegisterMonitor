@@ -14,7 +14,8 @@
 #include "stdbool.h"
 
 #define MAX_WRITE_CALLBACK 8U
-
+#define MAX_GROUP (Register_Group_3 + 1)
+#define MAX_GROUP_SIZE 16
 /**
  * @brief Register monitor error codes.
  * 
@@ -22,13 +23,13 @@
 typedef enum {
     REGMON_OK = 0,
     REGMON_ERROR = -1,
-    REGMON_INVALID_VALUE = -2, 
-    REGMON_INVALID_ADDRESS = -3,
-    REGMON_ADDRESS_NOT_WRITEABLE = -4,
-    REGMON_ADDRESS_NOT_READABLE = -5,
-    REGMON_MUTEX_ERROR = -6,
-    REGMON_CYCLIC_READ_EXIDE_CAP = -7,
-    REGMON_CYCLIC_WRITE_EXIDE_CAP = -8,
+    REGMON_INVALID_PARAM = -2,
+    REGMON_INVALID_VALUE = -3, 
+    REGMON_INVALID_ADDRESS = -4,
+    REGMON_ADDRESS_NOT_WRITEABLE = -5,
+    REGMON_ADDRESS_NOT_READABLE = -6,
+    REGMON_MUTEX_ERROR = -7,
+    REGMON_GROUP_EXCEED_SIZE = -8
 }Regmon_status_e;
 
 /**
@@ -46,11 +47,9 @@ typedef struct {
     {
         uint32_t readable : 1;                  // is register readable
         uint32_t writeable : 1;                 // is register writeble
-        uint32_t cyclic_readable : 1;           // is register cyclic read-able
-        uint32_t cyclic_writeable : 1;          // is register cyclic write-able
         uint32_t Write_callback : 1;            // does register have a callback
         uint32_t callback_number : 3;           // call back number that
-        uint32_t reserved : 24;
+        uint32_t reserved : 26;                 // Reserved flags
     }flags;
 }Register;
 
@@ -65,6 +64,24 @@ typedef void (*RegMon_MutexCallback)(void* context, uint32_t timeout);
  * 
  */
 typedef void (*RegMON_WriteCallback)(uint32_t value);
+
+/**
+ * @brief Define the number of register groups 
+ * 
+ */
+typedef enum {
+    Register_group_0 = 0,   // Register Group 0
+    Register_Group_1,       // Register Group 1
+    Register_Group_2,       // Register Group 2
+    Register_Group_3        // Register Group 3
+}RegMon_group_e;
+
+
+typedef struct 
+{   
+    RegMon_group_e group;
+    uint32_t reg_values[MAX_GROUP_SIZE];
+}RegMon_group_t;
 
 /*****************************************************************************/
 /*                      Register monitor interface functions                 */
@@ -94,6 +111,9 @@ Regmon_status_e RegMON_SetWriteCallback(
     RegMON_WriteCallback cb
 );
 
+Regmon_status_e RegMon_SetupGroup(uint16_t* reg_num, size_t num_of_reg, RegMon_group_e group);
+Regmon_status_e RegMON_ClearGroup(RegMon_group_e group);
+
 Regmon_status_e RegMON_default_list(void);
 Regmon_status_e RegMON_default_list_to_OEM(void);
 
@@ -114,6 +134,9 @@ Regmon_status_e RegMON_write_register_block(
 
 Regmon_status_e RegMON_read_bit(uint32_t reg_index, uint8_t bitnum, uint8_t* dst);
 Regmon_status_e RegMON_write_bit(uint32_t reg_index, uint8_t bitnum, bool val);
+
+Regmon_status_e RegMON_ReadGroup(RegMon_group_t* dst);
+Regmon_status_e RegMON_WriteGroup(RegMon_group_t* src);
 
 #ifdef __cplusplus
 }

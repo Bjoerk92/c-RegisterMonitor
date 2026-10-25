@@ -15,7 +15,8 @@
 namespace
 {
 // Number of registers shared by the test register maps.
-constexpr int number_of_registers = 6;
+constexpr int number_of_registers = 14;
+constexpr int first_user_register = 6;
 
 // State captured by the write-callback test.
 uint32_t write_callback_value = 0;
@@ -60,6 +61,14 @@ void SetUpRegisters(std::array<Register, number_of_registers>& registers)
     registers[5].value = 0x0101;
     registers[5].flags.readable = false;
     registers[5].flags.writeable = false;
+
+    // User registers
+    for (int i = first_user_register; i < number_of_registers; ++i)
+    {
+        registers[i].value = 0;
+        registers[i].flags.readable = true;
+        registers[i].flags.writeable = true;
+    }
 }
 }
 
@@ -87,14 +96,14 @@ TEST(RegisterMonitorInit, ReturnsOkForValidRegisterList)
 // Initialization rejects a null register list.
 TEST(RegisterMonitorInit, ReturnsErrorForNullRegisterList)
 {
-    EXPECT_EQ(RegMon_Init(nullptr, nullptr, nullptr, nullptr, number_of_registers), REGMON_ERROR);
+    EXPECT_EQ(RegMon_Init(nullptr, nullptr, nullptr, nullptr, number_of_registers), REGMON_INVALID_PARAM);
 }
 
 // Initialization rejects a register list with no entries.
 TEST(RegisterMonitorInit, ReturnsErrorForEmptyRegisterList)
 {
     std::array<Register, number_of_registers> registers{};
-    EXPECT_EQ(RegMon_Init(registers.data(), nullptr, nullptr, nullptr, 0), REGMON_ERROR);
+    EXPECT_EQ(RegMon_Init(registers.data(), nullptr, nullptr, nullptr, 0), REGMON_INVALID_PARAM);
 }
 
 // Register read tests
@@ -125,10 +134,25 @@ TEST_F(RegisterMonitorReadTest, ReadsValueFromReadableRegister)
     EXPECT_EQ(value, 0x20100000);
 }
 
+// All eight user registers are initialized as readable and writeable.
+TEST_F(RegisterMonitorReadTest, UserRegistersAreReadableAndWriteable)
+{
+    for (int i = first_user_register; i < number_of_registers; ++i)
+    {
+        uint32_t value = static_cast<uint32_t>(i);
+
+        EXPECT_EQ(RegMon_read_register(i, &value), REGMON_OK);
+        EXPECT_EQ(value, 0);
+        EXPECT_EQ(RegMon_write_register(i, static_cast<uint32_t>(i)), REGMON_OK);
+        EXPECT_EQ(RegMon_read_register(i, &value), REGMON_OK);
+        EXPECT_EQ(value, static_cast<uint32_t>(i));
+    }
+}
+
 // Reading fails when the destination pointer is null.
 TEST_F(RegisterMonitorReadTest, ReturnsErrorForNullDestination)
 {
-    EXPECT_EQ(RegMon_read_register(0, nullptr), REGMON_ERROR);
+    EXPECT_EQ(RegMon_read_register(0, nullptr), REGMON_INVALID_PARAM);
 }
 
 // Reading fails when the register index is outside the configured list.
@@ -191,7 +215,7 @@ TEST_F(RegisterMonitorReadBlockTest, ReadsBlockEndingAtLastRegister)
 // Reading a block fails if the destination buffer is null.
 TEST_F(RegisterMonitorReadBlockTest, ReturnsErrorForNullDestination)
 {
-    EXPECT_EQ(RegMon_read_register_block(0, 1, nullptr), REGMON_ERROR);
+    EXPECT_EQ(RegMon_read_register_block(0, 1, nullptr), REGMON_INVALID_PARAM);
 }
 
 // Reading a block with zero registers is rejected.
@@ -199,7 +223,7 @@ TEST_F(RegisterMonitorReadBlockTest, ReturnsErrorForEmptyBlock)
 {
     uint32_t value = 0;
 
-    EXPECT_EQ(RegMon_read_register_block(0, 0, &value), REGMON_ERROR);
+    EXPECT_EQ(RegMon_read_register_block(0, 0, &value), REGMON_INVALID_PARAM);
 }
 
 // Reading fails if the requested block extends beyond the register list.
@@ -360,7 +384,7 @@ TEST_F(RegisterMonitorWriteBlockTest, WritesBlockEndingAtLastRegister)
 // Writing a block fails when the input values pointer is null.
 TEST_F(RegisterMonitorWriteBlockTest, ReturnsErrorForNullValues)
 {
-    EXPECT_EQ(RegMON_write_register_block(2, 1, nullptr), REGMON_ERROR);
+    EXPECT_EQ(RegMON_write_register_block(2, 1, nullptr), REGMON_INVALID_PARAM);
 }
 
 // Writing a block with zero registers is rejected.
@@ -368,7 +392,7 @@ TEST_F(RegisterMonitorWriteBlockTest, ReturnsErrorForEmptyBlock)
 {
     uint32_t value = 1;
 
-    EXPECT_EQ(RegMON_write_register_block(2, 0, &value), REGMON_ERROR);
+    EXPECT_EQ(RegMON_write_register_block(2, 0, &value), REGMON_INVALID_PARAM);
 }
 
 // Writing fails when the requested block extends beyond the register list.
@@ -402,4 +426,76 @@ TEST_F(RegisterMonitorWriteBlockTest, RejectsOutOfRangeValueWithoutChangingBlock
         REGMON_INVALID_VALUE);
     EXPECT_EQ(registers[2].value, 0);
     EXPECT_EQ(registers[3].value, 0);
+}
+
+// Register group test
+// =============================================================================
+
+// Provides an initialized register map and permissive value limits for block writes.
+class RegisterMonitorGroupTest : public ::testing::Test
+{
+protected:
+    std::array<Register, number_of_registers> registers{};
+    std::array<uint32_t, number_of_registers> min_values{};
+    std::array<uint32_t, number_of_registers> max_values{};
+    std::array<uint16_t, MAX_GROUP_SIZE> Group{
+        6, 7, 8, 9, 10, 11, 12, 13
+    };
+    // Reset the register map and initialize the monitor before every test.
+    void SetUp() override
+    {
+        SetUpRegisters(registers);
+        max_values.fill(0xFFFFFFFFu);
+        ASSERT_EQ(
+            RegMon_Init(
+                registers.data(),
+                nullptr,
+                min_values.data(),
+                max_values.data(),
+                number_of_registers),
+            REGMON_OK);
+    }
+};
+
+TEST_F(RegisterMonitorGroupTest, NullPointer)
+{
+    ASSERT_EQ(RegMon_SetupGroup(nullptr, 0, Register_group_0), REGMON_INVALID_PARAM);
+}
+
+TEST_F(RegisterMonitorGroupTest, ZeroRegisters)
+{
+    ASSERT_EQ(RegMon_SetupGroup(this->Group.data(), 0, Register_group_0), REGMON_INVALID_PARAM);
+}
+
+TEST_F(RegisterMonitorGroupTest, ExceedRegisters)
+{
+    ASSERT_EQ(RegMon_SetupGroup(this->Group.data(), MAX_GROUP_SIZE + 1, Register_group_0), REGMON_GROUP_EXCEED_SIZE);
+}
+
+TEST_F(RegisterMonitorGroupTest, WriteReadGroup)
+{
+    RegMon_group_t ret_values = {};
+    ret_values.group = Register_group_0; 
+
+    RegMon_group_t values = {};
+    values.group = Register_group_0; 
+    values.reg_values[0] = 1;
+    values.reg_values[1] = 1;
+    values.reg_values[2] = 1;
+    values.reg_values[3] = 1;
+    values.reg_values[4] = 1;
+    values.reg_values[5] = 1;
+    values.reg_values[6] = 1;
+    values.reg_values[7] = 1;
+    
+    ASSERT_EQ(RegMon_SetupGroup(this->Group.data(), this->Group.size(), Register_group_0), REGMON_OK);
+    ASSERT_EQ(RegMON_WriteGroup(&values), REGMON_OK);
+    ASSERT_EQ(RegMON_ReadGroup(&ret_values), REGMON_OK);
+
+    EXPECT_EQ(ret_values.group, values.group);
+    for (size_t i = 0; i < MAX_GROUP_SIZE; ++i)
+    {
+        EXPECT_EQ(ret_values.reg_values[i], values.reg_values[i]);
+    }
+
 }
